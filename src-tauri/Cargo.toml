@@ -1,6 +1,6 @@
 [package]
 name = "penapad"
-version = "1.1.0"
+version = "1.1.1"
 description = "Editor de texto e código leve para macOS, Windows e Linux"
 authors = ["Ricardo Pena"]
 license = "MIT"

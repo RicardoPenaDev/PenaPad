@@ -15,12 +15,12 @@ import CommandPalette, { type PaletteItem } from './components/CommandPalette';
 import { COMMANDS } from './commands';
 import { storeGet, storeSet } from './storage';
 import { IS_MAC, keys, kt } from './platform';
+import { parseSession, planRestore, type Pane, type SessionMeta } from './session';
 
 // Evita redesenhar a faixa de opções e as abas a cada movimento do cursor
 const RibbonM = memo(Ribbon);
 const TabBarM = memo(TabBar);
 
-type Pane = 0 | 1;
 type Ed = monaco.editor.IStandaloneCodeEditor;
 
 interface Tab {
@@ -58,30 +58,6 @@ function loadSettings(): Settings {
 const clampZoom = (z: number) => Math.max(50, Math.min(300, Math.round(z / 10) * 10));
 
 let untitledCounter = 0;
-
-/** Como cada aba é gravada na sessão (o conteúdo vai em arquivo de backup separado) */
-interface SessionTab {
-  id: string;
-  name: string;
-  path: string | null;
-  language: string;
-  encoding: Encoding;
-  eol: Eol;
-  dirty: boolean;
-  metaDirty: boolean;
-  view: monaco.editor.ICodeEditorViewState | null;
-  pane?: Pane;
-  disk?: FileStat | null;
-}
-interface SessionMeta {
-  v: 1;
-  active: string;
-  tabs: SessionTab[];
-  actives?: [string, string];
-  split?: boolean;
-  ratio?: number;
-  focus?: Pane;
-}
 
 interface RestoreInfo { id: string; dirty: boolean; metaDirty: boolean; language: string; view: monaco.editor.ICodeEditorViewState | null; pane: Pane }
 
@@ -451,6 +427,10 @@ export default function App() {
 
   // ---------- Sessão: tudo o que está aberto é mantido ao fechar o app ----------
   const restored = useRef(false);
+  /** A sessão anterior foi restaurada por inteiro: só então backups de abas fechadas podem ser apagados */
+  const restoreOk = useRef(false);
+  const saveErrorAt = useRef(0);
+  const restoreNote = useRef<string | null>(null);
   const pendingBackup = useRef(new Set<string>());
   const saveTimer = useRef<number | undefined>(undefined);
   const flushChain = useRef<Promise<void>>(Promise.resolve());
@@ -472,7 +452,14 @@ export default function App() {
     for (const id of ids) {
       const t = tabsNow.find((x) => x.id === id);
       const m = models.current.get(id);
-      if (t && m && needsBackup(t)) await api.sessionBackup(id, m.getValue());
+      if (!(t && m && needsBackup(t))) continue;
+      try {
+        await api.sessionBackup(id, m.getValue());
+      } catch (e) {
+        // Tenta de novo na próxima gravação, sem perder a marcação
+        ids.slice(ids.indexOf(id)).forEach((x) => pendingBackup.current.add(x));
+        throw e;
+      }
     }
     for (const p of [0, 1] as Pane[]) {
       const ed = edRef.current[p];
@@ -494,13 +481,26 @@ export default function App() {
           disk: diskStat.current.get(t.id) ?? null,
         })),
     };
-    await api.sessionSave(JSON.stringify(meta), tabsNow.filter(needsBackup).map((t) => t.id));
+    await api.sessionSave(JSON.stringify(meta), tabsNow.filter(needsBackup).map((t) => t.id), restoreOk.current);
   }, []);
 
+  /** Grava a sessão; erros (disco cheio, sem permissão) aparecem na barra de status */
   const flush = useCallback(() => {
-    flushChain.current = flushChain.current.then(doFlush).catch((e) => console.error('sessão', e));
-    return flushChain.current;
+    const run = flushChain.current.then(doFlush);
+    flushChain.current = run.catch((e) => {
+      console.error('sessão', e);
+      const now = Date.now();
+      if (now - saveErrorAt.current > 30_000) {
+        saveErrorAt.current = now;
+        flashRef.current(`⚠ Não foi possível guardar os textos não salvos: ${e}. Verifique o espaço livre e as permissões do disco.`);
+      }
+      window.clearTimeout(saveTimer.current);
+      saveTimer.current = window.setTimeout(() => flushRef.current(), 10_000); // tenta de novo
+    });
+    return run;
   }, [doFlush]);
+  const flushRef = useRef(flush);
+  flushRef.current = flush;
 
   const scheduleSaveRef = useRef<(id?: string) => void>(() => {});
   scheduleSaveRef.current = (id?: string) => {
@@ -511,20 +511,18 @@ export default function App() {
 
   const restoreSession = useCallback(async () => {
     const data = await api.sessionLoad();
-    if (!data.meta) return;
-    const meta = JSON.parse(data.meta) as SessionMeta;
-    if (meta?.v !== 1 || !Array.isArray(meta.tabs)) return;
+    const meta = parseSession(data.meta);
+    const plan = planRestore(meta, data.backups);
     // Arquivos sem alterações são relidos do disco (pegam a versão mais nova)
-    const toRead = meta.tabs.filter((t) => t.path && data.backups[t.id] === undefined).map((t) => t.path!);
+    const toRead = plan.toRead;
     const fromDisk = new Map<string, OpenedDoc>();
     if (toRead.length) (await api.readPathsQuiet(toRead)).forEach((d, i) => { if (d) fromDisk.set(toRead[i], d); });
 
-    const wantSplit = !!meta.split && meta.tabs.some((t) => t.pane === 1);
+    const wantSplit = !!meta?.split && plan.tabs.some(({ tab }) => tab.pane === 1);
     if (wantSplit) { setSplit(true); ensureEditor(1); }
-    if (typeof meta.ratio === 'number') setRatio(meta.ratio);
+    if (typeof meta?.ratio === 'number') setRatio(meta.ratio);
 
-    for (const t of meta.tabs) {
-      const backup = data.backups[t.id];
+    for (const { tab: t, backup } of plan.tabs) {
       let doc: OpenedDoc;
       if (backup !== undefined) doc = { path: t.path ?? '', name: t.name, content: backup, encoding: t.encoding, eol: t.eol, mtime: t.disk?.mtime, size: t.disk?.size };
       else if (t.path && fromDisk.has(t.path)) doc = fromDisk.get(t.path)!;
@@ -534,18 +532,26 @@ export default function App() {
       const pane: Pane = wantSplit && t.pane === 1 ? 1 : 0;
       addTab(doc, { id: t.id, dirty, metaDirty: !!t.metaDirty && backup !== undefined, language: t.language, view: t.view, pane });
     }
+    // Textos guardados que a lista de abas não menciona (lista estragada, ou o app foi fechado à força
+    // no meio de uma gravação): voltam como abas não salvas, nunca são descartados
+    plan.orphans.forEach(({ id, text }, i) => {
+      const name = `Recuperado ${i + 1}`;
+      addTab({ path: '', name, content: text, encoding: 'utf8', eol: text.includes('\r\n') ? 'CRLF' : 'LF' }, { id, dirty: true, metaDirty: false, language: 'plaintext', view: null, pane: 0 });
+    });
+    const notes = [data.problem, plan.orphans.length ? (plan.orphans.length === 1 ? '1 texto voltou como "Recuperado 1"' : `${plan.orphans.length} textos voltaram como "Recuperado 1…${plan.orphans.length}"`) : null].filter(Boolean);
+    if (notes.length) restoreNote.current = `⚠ ${notes.join('; ').replace(/^./, (c) => c.toUpperCase())}. Nenhum texto foi apagado.`;
     // Se um dos lados ficou vazio (arquivos apagados), volta para uma vista só
     if (splitRef.current && !(tabsRef.current.some((t) => t.pane === 0) && tabsRef.current.some((t) => t.pane === 1))) unsplit();
     for (const t of tabsRef.current) {
       const n = /^Sem título (\d+)$/.exec(t.name);
       if (n) untitledCounter = Math.max(untitledCounter, Number(n[1]));
     }
-    const acts = meta.actives ?? [meta.active, ''];
+    const acts = meta?.actives ?? [meta?.active ?? '', ''];
     for (const p of [0, 1] as Pane[]) {
       const a = acts[p];
       if (a && models.current.has(a) && tabsRef.current.find((t) => t.id === a)?.pane === p) activate(a, false);
     }
-    const f: Pane = splitRef.current && meta.focus === 1 ? 1 : 0;
+    const f: Pane = splitRef.current && meta?.focus === 1 ? 1 : 0;
     const fa = activesRef.current[f];
     if (fa) activate(fa);
   }, [addTab, activate, ensureEditor, setRatio, setSplit, unsplit]);
@@ -556,12 +562,20 @@ export default function App() {
     if (!eds[0] || started.current) return;
     started.current = true;
     (async () => {
-      try { await restoreSession(); } catch (e) { console.error('Falha ao restaurar a sessão', e); }
+      try {
+        await restoreSession();
+        restoreOk.current = true;
+      } catch (e) {
+        // Algo deu errado no meio: segue funcionando, mas sem apagar nenhum backup antigo nesta execução
+        console.error('Falha ao restaurar a sessão', e);
+        restoreNote.current = `⚠ Não foi possível restaurar toda a sessão anterior (${e}). Os textos guardados foram mantidos no disco.`;
+      }
       if (tabsRef.current.length === 0) addTab();
       restored.current = true;
       const docs = await api.ready();
       docs.forEach((d) => openDocRef.current(d));
       checkExternalRef.current(); // arquivos alterados enquanto o app estava fechado
+      if (restoreNote.current) flashRef.current(restoreNote.current);
     })();
   }, [eds[0]]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -569,8 +583,15 @@ export default function App() {
   useEffect(() => { if (restored.current) scheduleSaveRef.current(); }, [tabs, actives, split, ratio, focus]);
 
   // Ao fechar a janela/encerrar: grava tudo e sai, sem perguntar
+  // Se não der para gravar, não fecha: pergunta (os textos ainda estão na memória)
   useEffect(() => api.onSessionFlush(async () => {
-    try { await flush(); } finally { api.quit(); }
+    try {
+      await flush();
+    } catch (e) {
+      api.quitBlocked(String(e));
+      return;
+    }
+    api.quit();
   }), [flush]);
 
   const openDocRef = useRef<(d: OpenedDoc) => void>(() => {});
@@ -599,8 +620,10 @@ export default function App() {
   const flash = useCallback((text: string) => {
     setMessage(text);
     window.clearTimeout(msgTimer.current);
-    msgTimer.current = window.setTimeout(() => setMessage(''), 6000);
+    msgTimer.current = window.setTimeout(() => setMessage(''), text.startsWith('⚠') ? 15000 : 6000);
   }, []);
+  const flashRef = useRef(flash);
+  flashRef.current = flash;
 
   // ---------- Reabrir aba fechada (⇧⌘T) ----------
   const closedStack = useRef<ClosedTab[]>([]);

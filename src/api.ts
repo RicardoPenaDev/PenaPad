@@ -30,9 +30,9 @@ export const api = {
   confirmClose: (name: string) => invoke<'save' | 'discard' | 'cancel'>('confirm_close', { name }),
   clipboardRead: () => invoke<string>('clipboard_read'),
   clipboardWrite: (text: string) => invoke<void>('clipboard_write', { text }),
-  sessionLoad: () => invoke<{ meta: string | null; backups: Record<string, string> }>('session_load'),
+  sessionLoad: () => invoke<{ meta: string | null; backups: Record<string, string>; problem: string | null }>('session_load'),
   sessionBackup: (id: string, content: string | null) => invoke<void>('session_backup', { id, content }),
-  sessionSave: (meta: string, keep: string[]) => invoke<void>('session_save', { meta, keep }),
+  sessionSave: (meta: string, keep: string[], prune: boolean) => invoke<void>('session_save', { meta, keep, prune }),
   readPathsQuiet: (paths: string[]) => invoke<(OpenedDoc | null)[]>('read_paths_quiet', { paths }),
   tabMenu: (tabId: string, moveLabel: string) => { invoke('show_tab_menu', { tabId, moveLabel }); },
   contextMenu: (p: { hasSelection: boolean; canUndo: boolean; canRedo: boolean }) => { invoke('show_context_menu', p); },
@@ -42,6 +42,8 @@ export const api = {
   requestQuit: () => { invoke('request_quit_cmd'); },
   setTheme: (mode: 'system' | 'light' | 'dark') => { invoke('set_theme', { mode }); },
   quit: () => { invoke('quit'); },
+  /** Não deu para gravar a sessão ao sair: o app pergunta antes de fechar */
+  quitBlocked: (error: string) => { invoke('quit_blocked', { error }); },
   /** Mostra a janela e devolve arquivos recebidos do Finder antes da interface carregar */
   ready: () => invoke<OpenedDoc[]>('renderer_ready'),
   onMenu: (cb: (cmd: string, arg?: string) => void) => subscribe<{ cmd: string; arg?: string | null }>('menu', (p) => cb(p.cmd, p.arg ?? undefined)),

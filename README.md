@@ -23,7 +23,8 @@
 - **Histórico de versões local.** O PenaPad guarda versões do texto em disco (ao abrir, ao salvar, a cada 5 minutos
   e antes de qualquer troca grande). Dá para comparar com a versão atual e restaurar.
 - **Leve.** Usa o WebView do próprio sistema (não leva um navegador inteiro junto) e carrega só as partes do
-  editor que usa. Instalador de 3 a 7 MB e cerca de 70–120 MB de memória no uso normal.
+  editor que usa. Instalador de 3 a 7 MB; cerca de 165 MB de memória aberto e vazio e 235 MB com cinco arquivos
+  de código abertos ([como foi medido](#desempenho)).
 - **Do jeito de cada sistema.** No Mac, menus nativos e atalhos com ⌘; no Windows e no Linux, a barra de janela
   do sistema e atalhos com Ctrl. Clique direito nativo, tema claro e escuro, em português.
 
@@ -150,6 +151,7 @@ git clone https://github.com/RicardoPenaDev/PenaPad.git
 cd PenaPad
 npm install
 npm start          # abre em modo de desenvolvimento
+npm run check      # tipos + testes da interface + testes da parte nativa
 npx tauri build    # gera os instaladores do sistema em que você está
 npx tauri build --target universal-apple-darwin --bundles dmg   # Mac: Apple Silicon + Intel
 ```
@@ -163,13 +165,45 @@ e [Tailwind CSS](https://tailwindcss.com). Estrutura:
 
 ```
 src/                interface (React + TypeScript)
-  App.tsx           abas, tela dividida, sessão, comandos
+  App.tsx           abas, tela dividida, comandos
+  session.ts        como a sessão é lida e restaurada
   components/       barra de opções, busca, comparação, paleta, diálogos
 src-tauri/src/      parte nativa (Rust)
-  lib.rs            arquivos, sessão, menus nativos
+  lib.rs            arquivos, menus nativos, comandos
+  session.rs        sessão em disco (abas e textos não salvos)
   history.rs        histórico de versões em disco
+tests/              testes da interface (Vitest)
 flatpak/            manifesto do pacote Flatpak
 ```
+
+## Como o PenaPad protege o que você escreve
+
+- O texto das abas não salvas é gravado em disco cerca de 1 segundo depois que você para de digitar, com gravação
+  atômica (arquivo temporário + `fsync` + troca de nome): um travamento ou queda de energia não deixa arquivo pela metade.
+- A lista de abas anterior fica guardada (`session.prev.json`). Se a atual estiver danificada, o PenaPad usa a anterior;
+  se as duas estiverem, todo texto guardado volta como aba **Recuperado N**. Arquivos danificados são guardados à parte
+  (`session.corrupt-*.json`), nunca apagados.
+- Se não der para gravar (disco cheio, sem permissão), aparece um aviso na barra de status e o PenaPad **não fecha**
+  sem perguntar.
+- O histórico de versões guarda cópias a cada 5 minutos e antes de qualquer troca grande.
+
+Limite conhecido: o que foi digitado no último segundo antes de um travamento ou de um encerramento forçado pode se perder.
+
+Esses casos (encerramento forçado, lista de abas danificada, disco sem permissão, formato de outra versão) têm testes
+automáticos em [`src-tauri/src/session.rs`](src-tauri/src/session.rs) e [`tests/`](tests/), que rodam no GitHub Actions
+em macOS, Windows e Linux a cada mudança.
+
+## Desempenho
+
+Medido com `footprint` no macOS 27 (Mac com Apple Silicon), somando o processo do app e o processo da página do WebKit,
+com o PenaPad 1.1:
+
+| Situação | Memória |
+|---|---|
+| Aberto, uma aba vazia | ~165 MB |
+| Cinco arquivos de código abertos (TypeScript, Rust, Markdown, JSON e CSS; ~2.700 linhas no total) | ~235 MB |
+
+No Windows (WebView2) e no Linux (WebKitGTK) os números são diferentes, porque cada sistema usa o seu próprio WebView.
 
 ## Licença
 

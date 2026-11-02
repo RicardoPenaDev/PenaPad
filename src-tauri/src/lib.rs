@@ -1,7 +1,9 @@
 mod history;
+mod session;
+
+pub(crate) use session::write_atomic;
 
 use serde::Serialize;
-use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 #[cfg(target_os = "macos")]
@@ -15,6 +17,8 @@ use tauri_plugin_dialog::{DialogExt, MessageDialogButtons, MessageDialogKind, Me
 struct AppState {
     force_quit: bool,
     quitting: bool,
+    /// Muda a cada pedido de saída: o temporizador de segurança só encerra o pedido que o criou
+    quit_gen: u64,
     ready: bool,
     pending: Vec<PathBuf>,
 }
@@ -256,6 +260,27 @@ fn set_theme(window: WebviewWindow, mode: String) {
     let _ = window.set_theme(theme);
 }
 
+/// A interface não conseguiu gravar a sessão ao sair: cancela a saída e pergunta ao usuário
+#[tauri::command]
+fn quit_blocked(app: AppHandle, window: WebviewWindow, state: tauri::State<State>, error: String) {
+    state.lock().unwrap().quitting = false;
+    let handle = app.clone();
+    app.dialog()
+        .message(format!(
+            "Não foi possível guardar os textos não salvos ({error}).\n\nSe sair agora, as alterações feitas desde a última gravação podem se perder. Verifique se há espaço livre em disco, ou salve os arquivos antes de sair."
+        ))
+        .title("O PenaPad não conseguiu guardar a sessão")
+        .kind(MessageDialogKind::Warning)
+        .parent(&window)
+        .buttons(MessageDialogButtons::OkCancelCustom("Continuar no PenaPad".into(), "Sair Mesmo Assim".into()))
+        .show(move |keep| {
+            if !keep {
+                handle.state::<State>().lock().unwrap().force_quit = true;
+                handle.exit(0);
+            }
+        });
+}
+
 #[tauri::command]
 fn quit(app: AppHandle, state: tauri::State<State>) {
     state.lock().unwrap().force_quit = true;
@@ -274,42 +299,15 @@ fn session_dir<R: Runtime>(app: &AppHandle<R>) -> Result<PathBuf, String> {
     Ok(dir)
 }
 
-/// Grava de forma atômica (arquivo temporário + rename): nunca deixa um backup pela metade.
-pub(crate) fn write_atomic(path: &Path, data: &[u8]) -> Result<(), String> {
-    let tmp = path.with_extension("tmp");
-    std::fs::write(&tmp, data).map_err(|e| e.to_string())?;
-    std::fs::rename(&tmp, path).map_err(|e| e.to_string())
-}
-
 fn valid_id(id: &str) -> bool {
     !id.is_empty() && id.len() <= 64 && id.chars().all(|c| c.is_ascii_alphanumeric() || c == '-')
 }
 
-#[derive(Serialize)]
-struct SessionData {
-    meta: Option<String>,
-    backups: HashMap<String, String>,
-}
-
 #[tauri::command]
-async fn session_load(app: AppHandle) -> Result<SessionData, String> {
+async fn session_load(app: AppHandle) -> Result<session::Loaded, String> {
     let dir = session_dir(&app)?;
     history::prune(&dir);
-    let meta = std::fs::read_to_string(dir.join("session.json")).ok();
-    let mut backups = HashMap::new();
-    if let Ok(entries) = std::fs::read_dir(dir.join("backup")) {
-        for e in entries.flatten() {
-            let p = e.path();
-            if p.extension().and_then(|x| x.to_str()) != Some("txt") {
-                continue;
-            }
-            let Some(id) = p.file_stem().and_then(|x| x.to_str()).map(str::to_owned) else { continue };
-            if let Ok(text) = std::fs::read_to_string(&p) {
-                backups.insert(id, text);
-            }
-        }
-    }
-    Ok(SessionData { meta, backups })
+    Ok(session::load(&dir))
 }
 
 /// Grava/remove o backup do conteúdo de uma aba (None = a aba não precisa de backup).
@@ -328,21 +326,10 @@ async fn session_backup(app: AppHandle, id: String, content: Option<String>) -> 
     }
 }
 
-/// Grava a lista de abas e apaga backups de abas que não existem mais.
+/// Grava a lista de abas. `prune`: apaga backups de abas fechadas (só depois de a sessão ter sido restaurada).
 #[tauri::command]
-async fn session_save(app: AppHandle, meta: String, keep: Vec<String>) -> Result<(), String> {
-    let dir = session_dir(&app)?;
-    write_atomic(&dir.join("session.json"), meta.as_bytes())?;
-    if let Ok(entries) = std::fs::read_dir(dir.join("backup")) {
-        for e in entries.flatten() {
-            let p = e.path();
-            let stem = p.file_stem().and_then(|x| x.to_str()).unwrap_or_default().to_owned();
-            if !keep.iter().any(|k| *k == stem) {
-                let _ = std::fs::remove_file(&p);
-            }
-        }
-    }
-    Ok(())
+async fn session_save(app: AppHandle, meta: String, keep: Vec<String>, prune: bool) -> Result<(), String> {
+    session::save(&session_dir(&app)?, &meta, &keep, prune)
 }
 
 // ---------- Histórico local de versões ----------
@@ -512,7 +499,7 @@ fn clipboard_write(app: AppHandle, text: String) {
 // ---------- Saída: grava a sessão e encerra, sem perguntar ----------
 
 fn request_quit<R: Runtime>(app: &AppHandle<R>) {
-    {
+    let gen = {
         let s = app.state::<State>();
         let mut s = s.lock().unwrap();
         if s.force_quit {
@@ -524,13 +511,22 @@ fn request_quit<R: Runtime>(app: &AppHandle<R>) {
             return;
         }
         s.quitting = true;
-    }
+        s.quit_gen += 1;
+        s.quit_gen
+    };
     // A interface grava o que falta e chama `quit`. Se não responder, sai mesmo assim.
     let _ = app.emit("session-flush", ());
     let handle = app.clone();
     std::thread::spawn(move || {
         std::thread::sleep(std::time::Duration::from_secs(4));
-        handle.state::<State>().lock().unwrap().force_quit = true;
+        {
+            let s = handle.state::<State>();
+            let mut s = s.lock().unwrap();
+            if !s.quitting || s.quit_gen != gen {
+                return; // a interface pediu para não sair (não conseguiu gravar)
+            }
+            s.force_quit = true;
+        }
         handle.exit(0);
     });
 }
@@ -782,6 +778,7 @@ pub fn run() {
             show_about,
             request_quit_cmd,
             quit,
+            quit_blocked,
             clipboard_read,
             clipboard_write
         ])

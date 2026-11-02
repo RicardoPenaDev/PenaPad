@@ -1,7 +1,7 @@
 {
   "name": "penapad",
   "productName": "PenaPad",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Editor de texto e código leve para macOS, Windows e Linux",
   "author": "Ricardo Pena",
   "license": "MIT",
@@ -12,7 +12,10 @@
     "build:web": "tsc --noEmit && vite build",
     "tauri": "tauri",
     "start": "tauri dev",
-    "dist": "tauri build --target aarch64-apple-darwin --bundles dmg"
+    "dist": "tauri build --target aarch64-apple-darwin --bundles dmg",
+    "test": "vitest run",
+    "test:rust": "cargo test --manifest-path src-tauri/Cargo.toml --lib",
+    "check": "tsc --noEmit && vitest run && cargo test --manifest-path src-tauri/Cargo.toml --lib"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.3.3",
@@ -27,6 +30,7 @@
     "react-dom": "^19.3.1",
     "tailwindcss": "^4.3.3",
     "typescript": "^7.0.2",
-    "vite": "^8.3.4"
+    "vite": "^8.3.4",
+    "vitest": "^5.1.0"
   }
 }
