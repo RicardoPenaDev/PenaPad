@@ -1,0 +1,32 @@
+{
+  "name": "penapad",
+  "productName": "PenaPad",
+  "version": "1.0.0",
+  "description": "Editor de texto e c\u00f3digo para macOS leve e rápido",
+  "author": "Ricardo Pena",
+  "license": "MIT",
+  "repository": "github:RicardoPenaDev/PenaPad",
+  "private": true,
+  "scripts": {
+    "dev": "vite",
+    "build:web": "tsc --noEmit && vite build",
+    "tauri": "tauri",
+    "start": "tauri dev",
+    "dist": "tauri build --target aarch64-apple-darwin --bundles dmg"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.3.3",
+    "@tauri-apps/api": "^2.12.4",
+    "@tauri-apps/cli": "^2.12.3",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.1.2",
+    "lucide-react": "^1.60.0",
+    "monaco-editor": "^0.57.0",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "tailwindcss": "^4.3.3",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.4"
+  }
+}
