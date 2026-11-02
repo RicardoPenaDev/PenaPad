@@ -29,10 +29,12 @@ jobs:
         run: |
           VERSION=$(node -p "require('./package.json').version")
           TAG="v$VERSION"
-          if ! gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --draft --title "PenaPad $VERSION" --notes "Rascunho gerado automaticamente." --target "$GITHUB_SHA"
+          ID=$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json databaseId -q .databaseId 2>/dev/null || true)
+          if [ -z "$ID" ]; then
+            ID=$(gh api -X POST "repos/$GITHUB_REPOSITORY/releases" -f tag_name="$TAG" -f target_commitish="$GITHUB_SHA" \
+              -f name="PenaPad $VERSION" -f body="Rascunho gerado automaticamente." -F draft=true --jq .id)
           fi
-          ID=$(gh api "repos/$GITHUB_REPOSITORY/releases" --jq ".[] | select(.tag_name==\"$TAG\") | .id" | head -1)
+          test -n "$ID"
           echo "id=$ID" >> "$GITHUB_OUTPUT"
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
 
@@ -125,6 +127,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           VERSION=$(node -p "require('./package.json').version")
-          F=$(find out -name '*.flatpak' | head -1)
+          F=$(find out -type f -name '*.flatpak' | head -1)
+          test -n "$F"
           cp "$F" "PenaPad_${VERSION}_amd64.flatpak"
           gh release upload "${{ needs.release.outputs.tag }}" "PenaPad_${VERSION}_amd64.flatpak" --clobber --repo "$GITHUB_REPOSITORY"
