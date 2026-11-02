@@ -1,0 +1,13 @@
+[Desktop Entry]
+Type=Application
+Name={{name}}
+GenericName=Editor de Texto
+Comment={{comment}}
+Exec={{exec}} %F
+Icon={{icon}}
+StartupWMClass={{exec}}
+Terminal=false
+Categories=Utility;TextEditor;Development;
+Keywords=texto;código;notepad;editor;text;code;
+MimeType=text/plain;text/markdown;text/x-log;application/json;text/html;text/css;text/javascript;application/javascript;application/x-shellscript;text/x-python;text/x-csrc;text/x-chdr;text/x-c++src;application/xml;text/xml;application/x-yaml;application/sql;text/x-sql;
+StartupNotify=true

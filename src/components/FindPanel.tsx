@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { CaseSensitive, ChevronDown, ChevronRight, ChevronUp, Regex, Replace, ReplaceAll, WholeWord, X } from 'lucide-react';
 import { monaco } from '../monaco';
 import ReplacePreview, { type PreviewSpan, type Seg } from './ReplacePreview';
+import { IS_MAC, kt } from '../platform';
 
 type Editor = monaco.editor.IStandaloneCodeEditor;
 
@@ -242,10 +243,10 @@ export default function FindPanel({ editor, showReplace, focusToken, onToggleRep
     if (e.key === 'Escape') { e.preventDefault(); onClose(); return; }
     if (e.key === 'Enter') {
       e.preventDefault();
-      if (isReplace) { if (e.metaKey) replaceAll(); else replaceOne(); }
+      if (isReplace) { if (IS_MAC ? e.metaKey : e.ctrlKey) replaceAll(); else replaceOne(); }
       else if (e.shiftKey) prev(); else next();
     }
-    if (e.altKey && e.metaKey) {
+    if (e.altKey && (IS_MAC ? e.metaKey : !e.ctrlKey && !e.metaKey)) {
       if (e.code === 'KeyC') { e.preventDefault(); setMatchCase((v) => !v); }
       if (e.code === 'KeyW') { e.preventDefault(); setWholeWord((v) => !v); }
       if (e.code === 'KeyR') { e.preventDefault(); setRegex((v) => !v); }
@@ -287,13 +288,13 @@ export default function FindPanel({ editor, showReplace, focusToken, onToggleRep
                 className={`${inputCls} pr-[78px] ${error ? 'border-red-500' : 'border-[var(--border-strong)]'}`}
               />
               <div className="absolute top-[2px] right-[2px] flex gap-[1px]">
-                <Toggle on={matchCase} title="Diferenciar Maiúsculas/Minúsculas (⌥⌘C)" onClick={() => setMatchCase(!matchCase)}><CaseSensitive size={15} /></Toggle>
-                <Toggle on={wholeWord} title="Palavra Inteira (⌥⌘W)" onClick={() => setWholeWord(!wholeWord)}><WholeWord size={15} /></Toggle>
-                <Toggle on={regex} title="Expressão Regular (⌥⌘R)" onClick={() => setRegex(!regex)}><Regex size={14} /></Toggle>
+                <Toggle on={matchCase} title={kt("Diferenciar Maiúsculas/Minúsculas (⌥⌘C)")} onClick={() => setMatchCase(!matchCase)}><CaseSensitive size={15} /></Toggle>
+                <Toggle on={wholeWord} title={kt("Palavra Inteira (⌥⌘W)")} onClick={() => setWholeWord(!wholeWord)}><WholeWord size={15} /></Toggle>
+                <Toggle on={regex} title={kt("Expressão Regular (⌥⌘R)")} onClick={() => setRegex(!regex)}><Regex size={14} /></Toggle>
               </div>
             </div>
             <span className={`w-[78px] shrink-0 text-center text-[11px] ${error || (query && !matches.length) ? 'text-red-500' : 'text-[var(--text-3)]'}`}>{countLabel}</span>
-            <button title="Anterior (⇧↩)" onClick={prev} className="rounded p-1 text-[var(--text-2)] hover:bg-[var(--hover)]"><ChevronUp size={14} /></button>
+            <button title={kt("Anterior (⇧↩)")} onClick={prev} className="rounded p-1 text-[var(--text-2)] hover:bg-[var(--hover)]"><ChevronUp size={14} /></button>
             <button title="Próximo (↩)" onClick={next} className="rounded p-1 text-[var(--text-2)] hover:bg-[var(--hover)]"><ChevronDown size={14} /></button>
             <button title="Fechar (Esc)" onClick={onClose} className="rounded p-1 text-[var(--text-2)] hover:bg-[var(--hover)]"><X size={14} /></button>
           </div>
@@ -310,7 +311,7 @@ export default function FindPanel({ editor, showReplace, focusToken, onToggleRep
               <button title="Substituir (↩)" onClick={replaceOne} className="flex h-[26px] items-center gap-1 rounded-md px-2 text-[12px] hover:bg-[var(--hover)]">
                 <Replace size={13} /> Substituir
               </button>
-              <button title="Substituir Tudo… mostra antes o que vai mudar (⌘↩)" onClick={replaceAll} className="flex h-[26px] items-center gap-1 rounded-md bg-[var(--accent)] px-2 text-[12px] text-white hover:brightness-110">
+              <button title={kt("Substituir Tudo… mostra antes o que vai mudar (⌘↩)")} onClick={replaceAll} className="flex h-[26px] items-center gap-1 rounded-md bg-[var(--accent)] px-2 text-[12px] text-white hover:brightness-110">
                 <ReplaceAll size={13} /> Tudo
               </button>
             </div>

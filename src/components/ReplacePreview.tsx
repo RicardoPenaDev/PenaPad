@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { kt } from '../platform';
 
 /** Um trecho do documento (uma ou mais linhas seguidas) com as ocorrências que serão trocadas */
 export interface PreviewSpan {
@@ -125,7 +126,7 @@ export default function ReplacePreview({ spans, total, capped, find, replacement
         <div className="flex items-center gap-2 border-t border-[var(--border)] px-4 py-2.5">
           <button className="h-[26px] rounded-md px-2 text-[12px] hover:bg-[var(--hover)]" onClick={() => setAll(true)}>Marcar Todas</button>
           <button className="h-[26px] rounded-md px-2 text-[12px] hover:bg-[var(--hover)]" onClick={() => setAll(false)}>Desmarcar Todas</button>
-          <span className="ml-auto text-[11.5px] text-[var(--text-3)]">⌘Z desfaz depois</span>
+          <span className="ml-auto text-[11.5px] text-[var(--text-3)]">{kt('⌘Z desfaz depois')}</span>
           <button className="h-[28px] rounded-md px-3 text-[12px] hover:bg-[var(--hover)]" onClick={onCancel}>Cancelar</button>
           <button
             disabled={!chosen}

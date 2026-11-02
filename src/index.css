@@ -1,7 +1,7 @@
 @import 'tailwindcss';
 
 :root {
-  --font-ui: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', 'Helvetica Neue', sans-serif;
+  --font-ui: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', 'Helvetica Neue', 'Segoe UI Variable Text', 'Segoe UI', system-ui, Ubuntu, Cantarell, 'Noto Sans', sans-serif;
   --accent: #1f4fa3;
   --accent-soft: #e6edf9;
   --accent-text: #1a438c;

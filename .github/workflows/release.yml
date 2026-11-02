@@ -1,0 +1,130 @@
+# Gera os instaladores de macOS, Windows e Linux (e o pacote Flatpak) e coloca tudo numa versão
+# em rascunho no GitHub. Roda ao enviar uma tag "v*" ou manualmente pela aba Actions.
+name: Versão
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  # Cria a versão em rascunho uma vez só (os três sistemas enviam os arquivos para ela)
+  release:
+    runs-on: ubuntu-latest
+    outputs:
+      id: ${{ steps.make.outputs.id }}
+      tag: ${{ steps.make.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: make
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          TAG="v$VERSION"
+          if ! gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --draft --title "PenaPad $VERSION" --notes "Rascunho gerado automaticamente." --target "$GITHUB_SHA"
+          fi
+          ID=$(gh api "repos/$GITHUB_REPOSITORY/releases" --jq ".[] | select(.tag_name==\"$TAG\") | .id" | head -1)
+          echo "id=$ID" >> "$GITHUB_OUTPUT"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: release
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            args: --target universal-apple-darwin --bundles dmg
+            rust_targets: aarch64-apple-darwin,x86_64-apple-darwin
+          - os: windows-latest
+            args: --bundles nsis
+          - os: ubuntu-22.04
+            args: --bundles deb,rpm,appimage
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Dependências do Linux
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.rust_targets }}
+
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri -> target
+
+      - run: npm ci
+
+      - uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          releaseId: ${{ needs.release.outputs.id }}
+          args: ${{ matrix.args }}
+
+      - name: Guardar o .deb para o Flatpak
+        if: runner.os == 'Linux'
+        uses: actions/upload-artifact@v4
+        with:
+          name: deb
+          path: src-tauri/target/release/bundle/deb/*.deb
+
+  flatpak:
+    needs: [release, build]
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/flathub-infra/flatpak-github-actions:gnome-50
+      options: --privileged
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: deb
+          path: flatpak
+
+      - name: Preparar o .deb
+        run: mv flatpak/*.deb flatpak/penapad.deb
+
+      - uses: flatpak/flatpak-github-actions/flatpak-builder@v6
+        with:
+          bundle: PenaPad.flatpak
+          manifest-path: flatpak/com.ricardopena.penapad.yml
+          cache-key: flatpak-builder-${{ github.sha }}
+
+  flatpak-upload:
+    needs: [release, flatpak]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: PenaPad*
+          path: out
+      - name: Enviar para a versão
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          F=$(find out -name '*.flatpak' | head -1)
+          cp "$F" "PenaPad_${VERSION}_amd64.flatpak"
+          gh release upload "${{ needs.release.outputs.tag }}" "PenaPad_${VERSION}_amd64.flatpak" --clobber --repo "$GITHUB_REPOSITORY"

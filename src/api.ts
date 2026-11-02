@@ -37,6 +37,9 @@ export const api = {
   tabMenu: (tabId: string, moveLabel: string) => { invoke('show_tab_menu', { tabId, moveLabel }); },
   contextMenu: (p: { hasSelection: boolean; canUndo: boolean; canRedo: boolean }) => { invoke('show_context_menu', p); },
   setTitle: (title: string) => { invoke('set_title', { title }); },
+  toggleFullscreen: () => { invoke('toggle_fullscreen'); },
+  about: () => { invoke('show_about'); },
+  requestQuit: () => { invoke('request_quit_cmd'); },
   setTheme: (mode: 'system' | 'light' | 'dark') => { invoke('set_theme', { mode }); },
   quit: () => { invoke('quit'); },
   /** Mostra a janela e devolve arquivos recebidos do Finder antes da interface carregar */

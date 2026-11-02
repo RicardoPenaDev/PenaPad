@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { ChevronDown, ChevronUp, Columns2, Rows2, X } from 'lucide-react';
+import { kt } from '../platform';
 import { monaco } from '../monaco';
 
 export interface DiffSide { model: monaco.editor.ITextModel; label: string }
@@ -32,7 +33,7 @@ export default function DiffView({ content, fontSize, actions, onClose }: {
   useEffect(() => {
     const d = monaco.editor.createDiffEditor(host.current!, {
       automaticLayout: true,
-      fontFamily: "ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Monaco, monospace",
+      fontFamily: "ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Monaco, 'Cascadia Mono', Consolas, 'DejaVu Sans Mono', 'Liberation Mono', 'Ubuntu Mono', monospace",
       fontSize,
       lineHeight: 1.55,
       originalEditable: false,
@@ -113,7 +114,7 @@ export default function DiffView({ content, fontSize, actions, onClose }: {
           </span>
         )}
         <div className="ml-auto flex items-center gap-1">
-          <button className={btn} title="Diferença anterior (⇧F7)" onClick={() => diff.current?.goToDiff('previous')}><ChevronUp size={14} /> Anterior</button>
+          <button className={btn} title={kt("Diferença anterior (⇧F7)")} onClick={() => diff.current?.goToDiff('previous')}><ChevronUp size={14} /> Anterior</button>
           <button className={btn} title="Próxima diferença (F7)" onClick={() => diff.current?.goToDiff('next')}><ChevronDown size={14} /> Próxima</button>
           <button className={btn} title="Lado a lado ou em uma coluna" onClick={() => setSideBySide((v) => !v)}>
             {sideBySide ? <Rows2 size={14} /> : <Columns2 size={14} />} {sideBySide ? 'Em Linha' : 'Lado a Lado'}

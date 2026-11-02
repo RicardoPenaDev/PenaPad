@@ -14,6 +14,7 @@ import { applyLineOp, type LineOp } from './lineOps';
 import CommandPalette, { type PaletteItem } from './components/CommandPalette';
 import { COMMANDS } from './commands';
 import { storeGet, storeSet } from './storage';
+import { IS_MAC, keys, kt } from './platform';
 
 // Evita redesenhar a faixa de opções e as abas a cada movimento do cursor
 const RibbonM = memo(Ribbon);
@@ -87,7 +88,7 @@ interface RestoreInfo { id: string; dirty: boolean; metaDirty: boolean; language
 const EDITOR_OPTIONS: monaco.editor.IStandaloneEditorConstructionOptions = {
   model: null,
   automaticLayout: true,
-  fontFamily: "ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Monaco, monospace",
+  fontFamily: "ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Monaco, 'Cascadia Mono', Consolas, 'DejaVu Sans Mono', 'Liberation Mono', 'Ubuntu Mono', monospace",
   fontSize: BASE_FONT,
   lineHeight: 1.55,
   fontLigatures: false,
@@ -686,7 +687,7 @@ export default function App() {
     ackDeleted.current.delete(id);
     commitTabs(tabsRef.current.map((x) => (x.id === id ? { ...x, dirty: false, metaDirty: false, encoding: d.encoding, eol: d.eol } : x)));
     setExt(id, null);
-    if (!quiet) flash(`"${t.name}" recarregado do disco (⌘Z desfaz)`);
+    if (!quiet) flash(kt(`"${t.name}" recarregado do disco (⌘Z desfaz)`));
   }, [flash, setExt]);
 
   const checking = useRef(false);
@@ -795,7 +796,7 @@ export default function App() {
       title: 'Comparar o texto atual com…',
       items: [
         ...others.map((t) => ({ id: t.id, label: t.name, hint: t.path ?? 'Não salvo' })),
-        { id: '__clipboard__', label: 'Texto da área de transferência', hint: 'O que você copiou por último (⌘C)' },
+        { id: '__clipboard__', label: 'Texto da área de transferência', hint: kt('O que você copiou por último (⌘C)') },
       ],
       onPick: (id) => pickCompareRef.current(id),
     });
@@ -860,7 +861,7 @@ export default function App() {
     m.pushEditOperations([], [{ range: m.getFullModelRange(), text }], () => null);
     m.pushStackElement();
     if (ed && ed.getModel() === m) ed.setPosition({ lineNumber: 1, column: 1 });
-    flash(`Versão de ${when} restaurada (⌘Z desfaz)`);
+    flash(kt(`Versão de ${when} restaurada (⌘Z desfaz)`));
   }, [flash, snapshot]);
 
   const showHistory = useCallback(async (tabId?: string) => {
@@ -1135,7 +1136,7 @@ export default function App() {
       case 'columnSelection': {
         const on = !columnSelRef.current;
         setColumnSel(on);
-        flash(on ? 'Seleção em coluna ligada: arraste para selecionar um bloco (desligue no mesmo botão)' : 'Seleção em coluna desligada (⌥ + arrastar continua funcionando)');
+        flash(on ? 'Seleção em coluna ligada: arraste para selecionar um bloco (desligue no mesmo botão)' : kt('Seleção em coluna desligada (⌥ + arrastar continua funcionando)'));
         ed?.focus();
         break;
       }
@@ -1177,10 +1178,14 @@ export default function App() {
       case 'findPrev': if (findCtl.current) findCtl.current.prev(); else setFind((f) => ({ ...f, open: true, token: f.token + 1 })); break;
       case 'closeFind': setFind((f) => ({ ...f, open: false })); ed?.focus(); break;
       case 'palette': setPalette(true); break;
+      case 'fullscreen': api.toggleFullscreen(); break;
+      case 'about': api.about(); break;
+      case 'quit': api.requestQuit(); break;
     }
   }, [addTab, openDoc, saveTab, closeTab, patchTab, toggleSplit, moveOther, flash, reopenClosed, startCompare, runLineOp, closeDiff, showHistory, checkExternal, keepMine, reloadFromDisk, openExternalDiff, restoreVersion]);
 
   const lastKeyCmd = useRef<{ cmd: string; t: number } | null>(null);
+  const lastKeyRef = useRef(''); // última tecla (só para os testes)
   const execRef = useRef(exec);
   execRef.current = exec;
 
@@ -1199,15 +1204,23 @@ export default function App() {
   // Atalhos de teclado (fase de captura, antes do Monaco)
   useEffect(() => {
     const h = (e: KeyboardEvent) => {
+      lastKeyRef.current = `${e.ctrlKey ? 'C' : ''}${e.shiftKey ? 'S' : ''}${e.altKey ? 'A' : ''}${e.metaKey ? 'M' : ''} key=${e.key} code=${e.code}`;
       const letter = e.code.startsWith('Key') ? e.code.slice(3).toLowerCase() : e.key.toLowerCase();
       let cmd: string | null = null;
-      if (e.metaKey && !e.ctrlKey) {
+      // Tecla de comando: ⌘ no Mac, Ctrl no Windows/Linux (sem Alt, para não pegar o AltGr dos teclados brasileiros)
+      const mod = IS_MAC ? e.metaKey && !e.ctrlKey : e.ctrlKey && !e.metaKey && !e.altKey;
+      if (!IS_MAC && mod && letter === 'h' && !e.shiftKey) cmd = 'replace';
+      else if (!IS_MAC && mod && letter === 'g' && !e.shiftKey) cmd = 'gotoLine';
+      else if (!IS_MAC && e.key === 'F3' && !e.ctrlKey && !e.altKey && !e.metaKey) cmd = e.shiftKey ? 'findPrev' : 'findNext';
+      else if (!IS_MAC && mod && letter === 'q' && !e.shiftKey) cmd = 'quit';
+      else if (!IS_MAC && e.key === 'F11' && !e.ctrlKey && !e.altKey && !e.shiftKey) cmd = 'fullscreen';
+      else if (mod) {
         if (letter === 'n' && !e.shiftKey && !e.altKey) cmd = 'new';
         else if (letter === 'o' && !e.shiftKey && !e.altKey) cmd = 'open';
         else if (letter === 's' && !e.altKey) cmd = e.shiftKey ? 'saveAs' : 'save';
         else if (letter === 'w' && !e.shiftKey && !e.altKey) cmd = 'close';
         else if (letter === 'f') cmd = e.altKey ? 'replace' : 'find';
-        else if (letter === 'g' && !e.altKey) cmd = e.shiftKey ? 'findPrev' : 'findNext';
+        else if (letter === 'g' && !e.altKey && IS_MAC) cmd = e.shiftKey ? 'findPrev' : 'findNext';
         else if (e.key === '=' || e.key === '+' || e.code === 'Equal' || e.code === 'NumpadAdd') cmd = 'zoomIn';
         else if (e.key === '-' || e.code === 'Minus' || e.code === 'NumpadSubtract') cmd = 'zoomOut';
         else if (e.key === '0' || e.code === 'Digit0' || e.code === 'Numpad0') cmd = 'zoomReset';
@@ -1219,7 +1232,7 @@ export default function App() {
         else if (letter === 'd' && !e.shiftKey && !e.altKey && editorFocused()) cmd = 'addNextOccurrence';
         else if (letter === 'l' && e.shiftKey && !e.altKey && editorFocused()) cmd = 'selectOccurrences';
         else if (letter === 'k' && e.shiftKey && !e.altKey && editorFocused()) cmd = 'deleteLine';
-      } else if (e.ctrlKey && !e.metaKey && letter === 'g') cmd = 'gotoLine';
+      } else if (IS_MAC && e.ctrlKey && !e.metaKey && letter === 'g') cmd = 'gotoLine';
       else if (e.altKey && !e.metaKey && !e.ctrlKey && e.code === 'KeyZ') cmd = 'wordWrap';
       else if (e.altKey && e.shiftKey && !e.metaKey && !e.ctrlKey && e.code === 'KeyF') cmd = 'format';
       else if (e.altKey && !e.metaKey && !e.ctrlKey && editorFocused() && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
@@ -1227,6 +1240,11 @@ export default function App() {
       }
       else if (e.key === 'Escape' && findOpenRef.current && !document.querySelector('[data-modal]') && !(e.target as HTMLElement)?.closest?.('.monaco-editor .suggest-widget')) cmd = 'closeFind';
 
+      if (!cmd && !IS_MAC && (e.key === 'F5' || (mod && (letter === 'r' || (!e.shiftKey && (letter === 'p' || letter === 'j' || letter === 'u')))))) {
+        // Atalhos do navegador embutido (recarregar, imprimir, downloads…): não fazem sentido num editor
+        e.preventDefault();
+        return;
+      }
       if (cmd) {
         e.preventDefault();
         e.stopPropagation();
@@ -1246,8 +1264,9 @@ export default function App() {
   // Título da janela e contagem de alterações
   useEffect(() => {
     if (!active) return;
-    api.setTitle(`${active.name} — PenaPad`);
-  }, [active?.name, active?.path]); // eslint-disable-line react-hooks/exhaustive-deps
+    const mark = !IS_MAC && (active.dirty || active.metaDirty) ? '*' : '';
+    api.setTitle(`${mark}${active.name} — PenaPad`);
+  }, [active?.name, active?.path, active?.dirty, active?.metaDirty]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Clique direito: menu nativo do macOS (no editor) e nada do WebKit no resto da janela
   useEffect(() => {
@@ -1307,6 +1326,7 @@ export default function App() {
     prompt,
     columnSel,
     palette,
+    lastKey: lastKeyRef.current,
     focusEl: (document.activeElement as HTMLElement | null)?.getAttribute('placeholder') ?? document.activeElement?.tagName ?? null,
     modal: (document.querySelector('[data-modal]') as HTMLElement | null)?.innerText.slice(0, 1500) ?? null,
     selection: editor?.getSelections()?.map((x) => x.toString()) ?? [],
@@ -1363,6 +1383,12 @@ export default function App() {
       on: c.cmd === 'theme' ? settings.theme === c.arg : on[c.cmd],
     }));
     items.push({ key: 'palette', label: 'Paleta de Comandos', group: 'Visualizar', keys: '⇧⌘P' });
+    if (!IS_MAC) {
+      // No Mac ficam no menu do app
+      items.push({ key: 'fullscreen', label: 'Tela Cheia', group: 'Visualizar', keys: 'F11' });
+      items.push({ key: 'about', label: 'Sobre o PenaPad', group: 'Ajuda', alt: 'versão licença' });
+      items.push({ key: 'quit', label: 'Sair do PenaPad', group: 'Arquivo', keys: '⌘Q', alt: 'fechar encerrar' });
+    }
     for (const t of tabs) items.push({ key: `tab:${t.id}`, label: t.name + (t.dirty ? ' •' : ''), group: 'Ir para Aba', alt: t.path ?? '' });
     for (const l of allLanguages()) items.push({ key: `language:${l.id}`, label: l.name, group: 'Linguagem', alt: l.id, on: active?.language === l.id });
     return items;
@@ -1394,7 +1420,7 @@ export default function App() {
 
   return (
     <div className="flex h-full flex-col">
-      <TitleBar title={active?.name ?? 'PenaPad'} dirty={!!(active?.dirty || active?.metaDirty)} />
+      {IS_MAC && <TitleBar title={active?.name ?? 'PenaPad'} dirty={!!(active?.dirty || active?.metaDirty)} />}
       <RibbonM exec={exec} state={ribbonState} />
       <div className="relative flex min-h-0 flex-1 flex-col">
       {diffUsed && (
@@ -1405,11 +1431,11 @@ export default function App() {
           actions={diff && diff.kind === 'history' && diff.tabId ? (
             <>
               <button className="flex h-[26px] items-center rounded-md px-2 text-[12px] hover:bg-[var(--hover)]" title="Abre esta versão numa aba nova, sem mexer no texto atual" onClick={() => exec('historyNewTab')}>Abrir em Nova Aba</button>
-              <button className="flex h-[26px] items-center rounded-md bg-[var(--accent)] px-2 text-[12px] text-white hover:brightness-110" title="Troca o texto atual por esta versão (o atual também fica no histórico; ⌘Z desfaz)" onClick={() => exec('historyRestore')}>Restaurar Esta Versão</button>
+              <button className="flex h-[26px] items-center rounded-md bg-[var(--accent)] px-2 text-[12px] text-white hover:brightness-110" title={kt("Troca o texto atual por esta versão (o atual também fica no histórico; ⌘Z desfaz)")} onClick={() => exec('historyRestore')}>Restaurar Esta Versão</button>
             </>
           ) : diff && diff.kind === 'external' && diff.tabId ? (
             <>
-              <button className="flex h-[26px] items-center rounded-md px-2 text-[12px] hover:bg-[var(--hover)]" title="Troca o seu texto pela versão do disco (⌘Z desfaz)" onClick={() => { const id = diff.tabId!; closeDiff(); reloadFromDisk(id); }}>Usar Versão do Disco</button>
+              <button className="flex h-[26px] items-center rounded-md px-2 text-[12px] hover:bg-[var(--hover)]" title={kt("Troca o seu texto pela versão do disco (⌘Z desfaz)")} onClick={() => { const id = diff.tabId!; closeDiff(); reloadFromDisk(id); }}>Usar Versão do Disco</button>
               <button className="flex h-[26px] items-center rounded-md bg-[var(--accent)] px-2 text-[12px] text-white hover:brightness-110" title="Mantém o seu texto; ao salvar, ele substitui o do disco" onClick={() => { const id = diff.tabId!; closeDiff(); keepMine(id); }}>Manter Minha Versão</button>
             </>
           ) : undefined}
@@ -1471,7 +1497,7 @@ export default function App() {
       {prompt && (
         <PromptDialog
           title={prompt === 'prefix' ? 'Adicionar prefixo no início de cada linha' : 'Adicionar sufixo no fim de cada linha'}
-          hint={`Será aplicado ${(editor?.getSelection()?.isEmpty() ?? true) ? 'em todas as linhas do documento' : 'nas linhas selecionadas'}. ⌘Z desfaz.`}
+          hint={`Será aplicado ${(editor?.getSelection()?.isEmpty() ?? true) ? 'em todas as linhas do documento' : 'nas linhas selecionadas'}. ${kt('⌘Z')} desfaz.`}
           onCancel={() => { setPrompt(null); editor?.focus(); }}
           onOk={(v) => { const op = prompt; setPrompt(null); runLineOp(op, v); }}
         />
@@ -1519,12 +1545,12 @@ function ExternalBanner({ kind, name, onCompare, onReload, onKeep, onClose }: {
       {kind === 'modified' ? (
         <>
           <button className={`${btn} font-semibold`} onClick={onCompare}>Comparar</button>
-          <button className={btn} title="Troca o seu texto pela versão do disco (⌘Z desfaz)" onClick={onReload}>Recarregar do Disco</button>
+          <button className={btn} title={kt("Troca o seu texto pela versão do disco (⌘Z desfaz)")} onClick={onReload}>Recarregar do Disco</button>
           <button className={btn} title="Mantém o seu texto; ao salvar, ele substitui o do disco" onClick={onKeep}>Manter Minha Versão</button>
         </>
       ) : (
         <>
-          <button className={`${btn} font-semibold`} title="Mantém a aba aberta como não salva; ⌘S grava de novo" onClick={onKeep}>Manter no Editor</button>
+          <button className={`${btn} font-semibold`} title={kt("Mantém a aba aberta como não salva; ⌘S grava de novo")} onClick={onKeep}>Manter no Editor</button>
           <button className={btn} onClick={onClose}>Fechar Aba</button>
         </>
       )}

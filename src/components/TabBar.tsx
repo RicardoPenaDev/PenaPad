@@ -1,4 +1,5 @@
 import { Plus, X } from 'lucide-react';
+import { kt } from '../platform';
 
 export interface TabView { id: string; name: string; dirty: boolean; path: string | null }
 
@@ -32,7 +33,7 @@ export default function TabBar({ tabs, activeId, focused = true, onSelect, onClo
               <button
                 onMouseDown={(e) => e.stopPropagation()}
                 onClick={(e) => { e.stopPropagation(); onClose(t.id); }}
-                title="Fechar aba (⌘W)"
+                title={kt("Fechar aba (⌘W)")}
                 className="relative flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded hover:bg-[var(--pressed)]"
               >
                 {t.dirty && <span className="absolute h-[7px] w-[7px] rounded-full bg-[var(--text-2)] group-hover:hidden" />}
@@ -44,7 +45,7 @@ export default function TabBar({ tabs, activeId, focused = true, onSelect, onClo
       </div>
       <button
         onClick={onNew}
-        title="Nova aba (⌘N)"
+        title={kt("Nova aba (⌘N)")}
         className="mb-[3px] flex h-[24px] w-[24px] shrink-0 items-center justify-center rounded-md text-[var(--text-2)] hover:bg-[var(--hover)]"
       >
         <Plus size={15} />

@@ -4,7 +4,9 @@ use serde::Serialize;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
-use tauri::menu::{AboutMetadata, MenuBuilder, MenuItemBuilder, PredefinedMenuItem, SubmenuBuilder};
+#[cfg(target_os = "macos")]
+use tauri::menu::AboutMetadata;
+use tauri::menu::{MenuBuilder, MenuItemBuilder, PredefinedMenuItem, SubmenuBuilder};
 use tauri::{AppHandle, Emitter, Manager, RunEvent, Runtime, WebviewWindow, WindowEvent};
 use tauri_plugin_clipboard_manager::ClipboardExt;
 use tauri_plugin_dialog::{DialogExt, MessageDialogButtons, MessageDialogKind, MessageDialogResult};
@@ -439,8 +441,8 @@ fn selection_submenu<R: Runtime>(app: &AppHandle<R>, prefix: &str) -> tauri::Res
         .item(&it("addNextOccurrence", "Selecionar Próxima Ocorrência", Some("CmdOrCtrl+D"), true)?)
         .item(&it("selectOccurrences", "Selecionar Todas as Ocorrências", Some("CmdOrCtrl+Shift+L"), true)?)
         .item(&PredefinedMenuItem::separator(app)?)
-        .item(&it("columnSelection", "Modo Seleção em Coluna (ou ⌥ + arrastar)", None, true)?)
-        .item(&it("info-cursor", "Cursor Extra: ⌘ + clique", None, false)?)
+        .item(&it("columnSelection", if cfg!(target_os = "macos") { "Modo Seleção em Coluna (ou ⌥ + arrastar)" } else { "Modo Seleção em Coluna (ou Alt + arrastar)" }, None, true)?)
+        .item(&it("info-cursor", if cfg!(target_os = "macos") { "Cursor Extra: ⌘ + clique" } else { "Cursor Extra: Ctrl + clique" }, None, false)?)
         .build()
 }
 
@@ -461,7 +463,7 @@ fn show_context_menu(app: AppHandle, window: WebviewWindow, has_selection: bool,
         let selection = selection_submenu(&app, "ctx-")?;
         MenuBuilder::new(&app)
             .item(&item("undo", "Desfazer", Some("CmdOrCtrl+Z"), can_undo)?)
-            .item(&item("redo", "Refazer", Some("CmdOrCtrl+Shift+Z"), can_redo)?)
+            .item(&item("redo", "Refazer", Some(if cfg!(target_os = "macos") { "CmdOrCtrl+Shift+Z" } else { "Ctrl+Y" }), can_redo)?)
             .item(&sep()?)
             .item(&item("cut", "Recortar", Some("CmdOrCtrl+X"), has_selection)?)
             .item(&item("copy", "Copiar", Some("CmdOrCtrl+C"), has_selection)?)
@@ -533,8 +535,67 @@ fn request_quit<R: Runtime>(app: &AppHandle<R>) {
     });
 }
 
-// ---------- Menu nativo ----------
+// ---------- Janela (Windows/Linux: sem menu do app, estas funções ficam na paleta) ----------
 
+#[tauri::command]
+fn toggle_fullscreen(window: WebviewWindow) {
+    let on = window.is_fullscreen().unwrap_or(false);
+    let _ = window.set_fullscreen(!on);
+}
+
+/// Ctrl+Q no Windows/Linux: o mesmo caminho de fechar a janela (grava a sessão e sai)
+#[tauri::command]
+fn request_quit_cmd(app: AppHandle) {
+    request_quit(&app);
+}
+
+#[tauri::command]
+fn show_about(app: AppHandle, window: WebviewWindow) {
+    let v = app.package_info().version.to_string();
+    app.dialog()
+        .message(format!(
+            "Versão {v}\n\nEditor de texto e código leve, no espírito do Notepad++.\n\n© 2026 Ricardo Pena · Licença MIT\ngithub.com/RicardoPenaDev/PenaPad\n\nFeito com Tauri, React e Monaco Editor (MIT, © Microsoft)."
+        ))
+        .title("Sobre o PenaPad")
+        .kind(MessageDialogKind::Info)
+        .parent(&window)
+        .show(|_| {});
+}
+
+/// Arquivos recebidos pela linha de comando ("Abrir com…" no Windows/Linux), relativos à pasta de onde foi chamado
+#[cfg(not(target_os = "macos"))]
+fn paths_from_args<I: IntoIterator<Item = String>>(args: I, cwd: &Path) -> Vec<PathBuf> {
+    args.into_iter()
+        .skip(1)
+        .filter(|a| !a.starts_with('-'))
+        .map(|a| {
+            let p = PathBuf::from(&a);
+            if p.is_absolute() { p } else { cwd.join(p) }
+        })
+        .filter(|p| p.is_file())
+        .collect()
+}
+
+/// Abre arquivos que chegaram com o app já aberto (ou guarda até a interface estar pronta)
+fn deliver_paths<R: Runtime>(app: &AppHandle<R>, paths: Vec<PathBuf>) {
+    let ready = {
+        let s = app.state::<State>();
+        let mut s = s.lock().unwrap();
+        if !s.ready {
+            s.pending.extend(paths.clone());
+        }
+        s.ready
+    };
+    if ready {
+        for d in read_many(app, &paths) {
+            let _ = app.emit("file-opened", d);
+        }
+    }
+}
+
+// ---------- Menu nativo (macOS) ----------
+
+#[cfg(target_os = "macos")]
 fn build_menu<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<tauri::menu::Menu<R>> {
     let it = |id: &str, label: &str, accel: Option<&str>| {
         let mut b = MenuItemBuilder::with_id(id, label);
@@ -548,7 +609,7 @@ fn build_menu<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<tauri::menu::Menu
     let about = AboutMetadata {
         name: Some("PenaPad".into()),
         version: Some(app.package_info().version.to_string()),
-        comments: Some("Editor de texto e código leve para macOS.".into()),
+        comments: Some("Editor de texto e código leve.".into()),
         website: Some("https://github.com/RicardoPenaDev/PenaPad".into()),
         website_label: Some("github.com/RicardoPenaDev/PenaPad".into()),
         copyright: Some("© 2026 Ricardo Pena · Licença MIT".into()),
@@ -639,11 +700,37 @@ fn build_menu<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<tauri::menu::Menu
 // ---------- App ----------
 
 pub fn run() {
-    tauri::Builder::default()
+    #[allow(unused_mut)]
+    let mut state = AppState::default();
+    #[allow(unused_mut)]
+    let mut builder = tauri::Builder::default();
+
+    #[cfg(not(target_os = "macos"))]
+    {
+        let cwd = std::env::current_dir().unwrap_or_default();
+        state.pending = paths_from_args(std::env::args(), &cwd);
+        // Uma janela só: abrir outro arquivo com o PenaPad aberto manda o arquivo para ela,
+        // em vez de abrir um segundo PenaPad gravando a mesma sessão. A cópia de testes fica de fora.
+        if std::env::var_os("PENAPAD_DATA_DIR").is_none() {
+            builder = builder.plugin(tauri_plugin_single_instance::init(|app, args, cwd| {
+                deliver_paths(app, paths_from_args(args, Path::new(&cwd)));
+                if let Some(w) = main_window(app) {
+                    let _ = w.unminimize();
+                    let _ = w.show();
+                    let _ = w.set_focus();
+                }
+            }));
+        }
+    }
+    #[cfg(target_os = "macos")]
+    {
+        builder = builder.menu(build_menu);
+    }
+
+    builder
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_clipboard_manager::init())
-        .manage(State::default())
-        .menu(build_menu)
+        .manage(Mutex::new(state))
         .on_menu_event(|app, event| {
             let id = event.id().as_ref();
             let id = id.strip_prefix("ctx-").unwrap_or(id);
@@ -691,6 +778,9 @@ pub fn run() {
             confirm_overwrite,
             set_title,
             set_theme,
+            toggle_fullscreen,
+            show_about,
+            request_quit_cmd,
             quit,
             clipboard_read,
             clipboard_write
@@ -701,19 +791,7 @@ pub fn run() {
             #[cfg(target_os = "macos")]
             RunEvent::Opened { urls } => {
                 let paths: Vec<PathBuf> = urls.iter().filter_map(|u| u.to_file_path().ok()).collect();
-                let ready = {
-                    let s = app.state::<State>();
-                    let mut s = s.lock().unwrap();
-                    if !s.ready {
-                        s.pending.extend(paths.clone());
-                    }
-                    s.ready
-                };
-                if ready {
-                    for d in read_many(app, &paths) {
-                        let _ = app.emit("file-opened", d);
-                    }
-                }
+                deliver_paths(app, paths);
             }
             RunEvent::ExitRequested { api, code, .. } => {
                 let force = app.state::<State>().lock().unwrap().force_quit;

@@ -1,0 +1,38 @@
+# Pacote Flatpak montado a partir do .deb gerado pelo Tauri (veja .github/workflows/release.yml).
+# Para gerar localmente: coloque o .deb como flatpak/penapad.deb e rode
+#   flatpak-builder --user --install --force-clean build flatpak/com.ricardopena.penapad.yml
+id: com.ricardopena.penapad
+runtime: org.gnome.Platform
+runtime-version: '50'
+sdk: org.gnome.Sdk
+command: penapad
+finish-args:
+  - --socket=wayland
+  - --socket=fallback-x11
+  - --share=ipc
+  - --device=dri
+  # Editor de texto: precisa abrir e salvar arquivos em qualquer pasta do usuário
+  - --filesystem=home
+  - --filesystem=/media
+  - --filesystem=/run/media
+  - --filesystem=/mnt
+modules:
+  - name: penapad
+    buildsystem: simple
+    sources:
+      - type: file
+        path: penapad.deb
+      - type: file
+        path: com.ricardopena.penapad.metainfo.xml
+    build-commands:
+      - ar -x penapad.deb
+      - tar -xf data.tar.gz
+      - install -Dm755 usr/bin/penapad /app/bin/penapad
+      - |
+        for d in usr/share/icons/hicolor/*/apps; do
+          size=$(basename $(dirname $d))
+          install -Dm644 $d/penapad.png /app/share/icons/hicolor/$size/apps/com.ricardopena.penapad.png
+        done
+      - install -Dm644 usr/share/applications/PenaPad.desktop /app/share/applications/com.ricardopena.penapad.desktop
+      - sed -i 's/^Icon=.*/Icon=com.ricardopena.penapad/' /app/share/applications/com.ricardopena.penapad.desktop
+      - install -Dm644 com.ricardopena.penapad.metainfo.xml /app/share/metainfo/com.ricardopena.penapad.metainfo.xml

@@ -9,6 +9,7 @@ import {
   SquareDashed, ListX, ListMinus, History, ArrowLeftToLine, ArrowRightToLine, GitCompareArrows, MousePointerClick,
 } from 'lucide-react';
 import { allLanguages, languageName } from '../monaco';
+import { kt } from '../platform';
 
 export type Exec = (cmd: string, arg?: string) => void;
 
@@ -180,33 +181,33 @@ export default function Ribbon({ exec, state }: { exec: Exec; state: RibbonState
           {tab === 'home' && (
             <>
               <Group label="Arquivo">
-                <Big icon={<FilePlus size={I} strokeWidth={1.5} />} label="Novo" title="Novo (⌘N)" onClick={() => exec('new')} />
-                <Big icon={<FolderOpen size={I} strokeWidth={1.5} />} label="Abrir" title="Abrir (⌘O)" onClick={() => exec('open')} />
-                <Big icon={<Save size={I} strokeWidth={1.5} />} label="Salvar" title="Salvar (⌘S)" onClick={() => exec('save')} />
-                <Big icon={<SaveAll size={I} strokeWidth={1.5} />} label="Salvar Como" title="Salvar Como (⇧⌘S)" onClick={() => exec('saveAs')} />
+                <Big icon={<FilePlus size={I} strokeWidth={1.5} />} label="Novo" title={kt("Novo (⌘N)")} onClick={() => exec('new')} />
+                <Big icon={<FolderOpen size={I} strokeWidth={1.5} />} label="Abrir" title={kt("Abrir (⌘O)")} onClick={() => exec('open')} />
+                <Big icon={<Save size={I} strokeWidth={1.5} />} label="Salvar" title={kt("Salvar (⌘S)")} onClick={() => exec('save')} />
+                <Big icon={<SaveAll size={I} strokeWidth={1.5} />} label="Salvar Como" title={kt("Salvar Como (⇧⌘S)")} onClick={() => exec('saveAs')} />
               </Group>
               <Group label="Área de Transferência">
-                <Big icon={<ClipboardPaste size={I} strokeWidth={1.5} />} label="Colar" title="Colar (⌘V)" onClick={() => exec('paste')} />
+                <Big icon={<ClipboardPaste size={I} strokeWidth={1.5} />} label="Colar" title={kt("Colar (⌘V)")} onClick={() => exec('paste')} />
                 <Stack>
-                  <Small icon={<Scissors size={S} />} label="Recortar" title="Recortar (⌘X)" onClick={() => exec('cut')} />
-                  <Small icon={<Copy size={S} />} label="Copiar" title="Copiar (⌘C)" onClick={() => exec('copy')} />
-                  <Small icon={<TextSelect size={S} />} label="Selecionar Tudo" title="Selecionar Tudo (⌘A)" onClick={() => exec('selectAll')} />
+                  <Small icon={<Scissors size={S} />} label="Recortar" title={kt("Recortar (⌘X)")} onClick={() => exec('cut')} />
+                  <Small icon={<Copy size={S} />} label="Copiar" title={kt("Copiar (⌘C)")} onClick={() => exec('copy')} />
+                  <Small icon={<TextSelect size={S} />} label="Selecionar Tudo" title={kt("Selecionar Tudo (⌘A)")} onClick={() => exec('selectAll')} />
                 </Stack>
               </Group>
               <Group label="Histórico">
                 <Stack>
-                  <Small icon={<Undo2 size={S} />} label="Desfazer" title="Desfazer (⌘Z)" onClick={() => exec('undo')} />
-                  <Small icon={<Redo2 size={S} />} label="Refazer" title="Refazer (⇧⌘Z)" onClick={() => exec('redo')} />
-                  <Small icon={<History size={S} />} label="Versões…" title="Histórico de versões guardadas deste documento, mesmo depois de fechar o app (⇧⌘H)" onClick={() => exec('history')} />
+                  <Small icon={<Undo2 size={S} />} label="Desfazer" title={kt("Desfazer (⌘Z)")} onClick={() => exec('undo')} />
+                  <Small icon={<Redo2 size={S} />} label="Refazer" title={kt("Refazer (⇧⌘Z)")} onClick={() => exec('redo')} />
+                  <Small icon={<History size={S} />} label="Versões…" title={kt("Histórico de versões guardadas deste documento, mesmo depois de fechar o app (⇧⌘H)")} onClick={() => exec('history')} />
                 </Stack>
               </Group>
               <Group label="Exibição">
-                <Big icon={<WrapText size={I} strokeWidth={1.5} />} label="Quebra de Linha" active={state.wordWrap} title="Quebra Automática de Linha (⌥Z)" onClick={() => exec('wordWrap')} />
-                <Big icon={state.splitDir === 'row' ? <Columns2 size={I} strokeWidth={1.5} /> : <Rows2 size={I} strokeWidth={1.5} />} label="Dividir Tela" active={state.split} title="Dividir a tela em duas vistas (⌘\)" onClick={() => exec('split')} />
+                <Big icon={<WrapText size={I} strokeWidth={1.5} />} label="Quebra de Linha" active={state.wordWrap} title={kt("Quebra Automática de Linha (⌥Z)")} onClick={() => exec('wordWrap')} />
+                <Big icon={state.splitDir === 'row' ? <Columns2 size={I} strokeWidth={1.5} /> : <Rows2 size={I} strokeWidth={1.5} />} label="Dividir Tela" active={state.split} title={kt("Dividir a tela em duas vistas (⌘\\)")} onClick={() => exec('split')} />
                 <Stack>
-                  <Small icon={<ZoomIn size={S} />} label="Ampliar" title="Aumentar Zoom (⌘+)" onClick={() => exec('zoomIn')} />
-                  <Small icon={<ZoomOut size={S} />} label="Reduzir" title="Diminuir Zoom (⌘−)" onClick={() => exec('zoomOut')} />
-                  <Small icon={<Maximize2 size={S} />} label={`${state.zoom}%`} title="Zoom 100% (⌘0)" onClick={() => exec('zoomReset')} />
+                  <Small icon={<ZoomIn size={S} />} label="Ampliar" title={kt("Aumentar Zoom (⌘+)")} onClick={() => exec('zoomIn')} />
+                  <Small icon={<ZoomOut size={S} />} label="Reduzir" title={kt("Diminuir Zoom (⌘−)")} onClick={() => exec('zoomOut')} />
+                  <Small icon={<Maximize2 size={S} />} label={`${state.zoom}%`} title={kt("Zoom 100% (⌘0)")} onClick={() => exec('zoomReset')} />
                 </Stack>
               </Group>
               <Group label="Linguagem">
@@ -216,8 +217,8 @@ export default function Ribbon({ exec, state }: { exec: Exec; state: RibbonState
                 </div>
               </Group>
               <Group label="Localizar">
-                <Big icon={<Search size={I} strokeWidth={1.5} />} label="Localizar" title="Localizar (⌘F)" onClick={() => exec('find')} />
-                <Big icon={<Replace size={I} strokeWidth={1.5} />} label="Substituir" title="Substituir (⌥⌘F)" onClick={() => exec('replace')} />
+                <Big icon={<Search size={I} strokeWidth={1.5} />} label="Localizar" title={kt("Localizar (⌘F)")} onClick={() => exec('find')} />
+                <Big icon={<Replace size={I} strokeWidth={1.5} />} label="Substituir" title={kt("Substituir (⌥⌘F)")} onClick={() => exec('replace')} />
               </Group>
             </>
           )}
@@ -229,25 +230,25 @@ export default function Ribbon({ exec, state }: { exec: Exec; state: RibbonState
                 <Big icon={<Redo2 size={I} strokeWidth={1.5} />} label="Refazer" onClick={() => exec('redo')} />
               </Group>
               <Group label="Código">
-                <Big icon={<MessageSquareCode size={I} strokeWidth={1.5} />} label="Comentar" title="Comentar / Descomentar a linha ou a seleção (⌘/)" onClick={() => exec('comment')} />
-                <Big icon={<Wand2 size={I} strokeWidth={1.5} />} label="Formatar" title="Formatar Documento (⇧⌥F)" onClick={() => exec('format')} />
+                <Big icon={<MessageSquareCode size={I} strokeWidth={1.5} />} label="Comentar" title={kt("Comentar / Descomentar a linha ou a seleção (⌘/)")} onClick={() => exec('comment')} />
+                <Big icon={<Wand2 size={I} strokeWidth={1.5} />} label="Formatar" title={kt("Formatar Documento (⇧⌥F)")} onClick={() => exec('format')} />
                 <Big icon={<Braces size={I} strokeWidth={1.5} />} label="Formatar JSON" title="Deixa um JSON de uma linha legível e mostra onde estão os erros" onClick={() => exec('formatJson')} />
               </Group>
               <Group label="Vários Cursores">
-                <Big icon={<TextSelect size={I} strokeWidth={1.5} />} label="Próxima Ocorrência" title="Seleciona a próxima ocorrência da palavra/seleção com mais um cursor (⌘D)" onClick={() => exec('addNextOccurrence')} />
-                <Big icon={<MousePointerClick size={I} strokeWidth={1.5} />} label="Todas as Ocorrências" title="Um cursor em cada ocorrência para editar todas juntas (⇧⌘L). Dica: ⌘ + clique cria um cursor extra" onClick={() => exec('selectOccurrences')} />
-                <Big icon={<SquareDashed size={I} strokeWidth={1.5} />} label="Seleção em Coluna" active={state.columnSelection} title="Liga/desliga a seleção em bloco (coluna). Sem ligar: ⌥ + arrastar" onClick={() => exec('columnSelection')} />
+                <Big icon={<TextSelect size={I} strokeWidth={1.5} />} label="Próxima Ocorrência" title={kt("Seleciona a próxima ocorrência da palavra/seleção com mais um cursor (⌘D)")} onClick={() => exec('addNextOccurrence')} />
+                <Big icon={<MousePointerClick size={I} strokeWidth={1.5} />} label="Todas as Ocorrências" title={kt("Um cursor em cada ocorrência para editar todas juntas (⇧⌘L). Dica: ⌘ + clique cria um cursor extra")} onClick={() => exec('selectOccurrences')} />
+                <Big icon={<SquareDashed size={I} strokeWidth={1.5} />} label="Seleção em Coluna" active={state.columnSelection} title={kt("Liga/desliga a seleção em bloco (coluna). Sem ligar: ⌥ + arrastar")} onClick={() => exec('columnSelection')} />
               </Group>
               <Group label="Linhas">
                 <Stack>
-                  <Small icon={<CopyPlus size={S} />} label="Duplicar" title="Duplicar Linha (⇧⌥↓)" onClick={() => exec('duplicate')} />
-                  <Small icon={<ArrowUp size={S} />} label="Mover para Cima" title="Mover Linha para Cima (⌥↑)" onClick={() => exec('moveUp')} />
-                  <Small icon={<ArrowDown size={S} />} label="Mover para Baixo" title="Mover Linha para Baixo (⌥↓)" onClick={() => exec('moveDown')} />
+                  <Small icon={<CopyPlus size={S} />} label="Duplicar" title={kt("Duplicar Linha (⇧⌥↓)")} onClick={() => exec('duplicate')} />
+                  <Small icon={<ArrowUp size={S} />} label="Mover para Cima" title={kt("Mover Linha para Cima (⌥↑)")} onClick={() => exec('moveUp')} />
+                  <Small icon={<ArrowDown size={S} />} label="Mover para Baixo" title={kt("Mover Linha para Baixo (⌥↓)")} onClick={() => exec('moveDown')} />
                 </Stack>
                 <Stack>
-                  <Small icon={<Trash2 size={S} />} label="Excluir Linha" title="Excluir Linha (⇧⌘K)" onClick={() => exec('deleteLine')} />
-                  <Small icon={<ArrowDownAZ size={S} />} label="Ordenar A→Z" title="Ordena a seleção ou o documento (⌘Z desfaz)" onClick={() => exec('sortAsc')} />
-                  <Small icon={<ArrowDownZA size={S} />} label="Ordenar Z→A" title="Ordena a seleção ou o documento (⌘Z desfaz)" onClick={() => exec('sortDesc')} />
+                  <Small icon={<Trash2 size={S} />} label="Excluir Linha" title={kt("Excluir Linha (⇧⌘K)")} onClick={() => exec('deleteLine')} />
+                  <Small icon={<ArrowDownAZ size={S} />} label="Ordenar A→Z" title={kt("Ordena a seleção ou o documento (⌘Z desfaz)")} onClick={() => exec('sortAsc')} />
+                  <Small icon={<ArrowDownZA size={S} />} label="Ordenar Z→A" title={kt("Ordena a seleção ou o documento (⌘Z desfaz)")} onClick={() => exec('sortDesc')} />
                 </Stack>
                 <Stack>
                   <Small icon={<ListX size={S} />} label="Remover Duplicadas" title="Mantém só a primeira de cada linha repetida (seleção ou documento)" onClick={() => exec('dedupe')} />
@@ -267,7 +268,7 @@ export default function Ribbon({ exec, state }: { exec: Exec; state: RibbonState
                 </Stack>
               </Group>
               <Group label="Navegação">
-                <Big icon={<CornerDownRight size={I} strokeWidth={1.5} />} label="Ir para Linha" title="Ir para Linha (⌃G)" onClick={() => exec('gotoLine')} />
+                <Big icon={<CornerDownRight size={I} strokeWidth={1.5} />} label="Ir para Linha" title={kt("Ir para Linha (⌃G)")} onClick={() => exec('gotoLine')} />
               </Group>
             </>
           )}
@@ -289,7 +290,7 @@ export default function Ribbon({ exec, state }: { exec: Exec; state: RibbonState
               <Group label="Dividir Tela">
                 <Big
                   icon={state.splitDir === 'row' ? <Columns2 size={I} strokeWidth={1.5} /> : <Rows2 size={I} strokeWidth={1.5} />}
-                  label="Dividir Tela" active={state.split} title="Dividir a tela em duas vistas (⌘\)" onClick={() => exec('split')}
+                  label="Dividir Tela" active={state.split} title={kt("Dividir a tela em duas vistas (⌘\\)")} onClick={() => exec('split')}
                 />
                 <Stack>
                   <Small icon={<ArrowLeftRight size={S} />} label="Mover Aba para o Outro Lado" title="Move a aba atual para a outra vista" onClick={() => exec('moveOther')} />
@@ -331,17 +332,17 @@ export default function Ribbon({ exec, state }: { exec: Exec; state: RibbonState
           {tab === 'find' && (
             <>
               <Group label="Localizar">
-                <Big icon={<Search size={I} strokeWidth={1.5} />} label="Localizar" title="Localizar (⌘F)" onClick={() => exec('find')} />
-                <Big icon={<Replace size={I} strokeWidth={1.5} />} label="Substituir" title="Substituir (⌥⌘F)" onClick={() => exec('replace')} />
+                <Big icon={<Search size={I} strokeWidth={1.5} />} label="Localizar" title={kt("Localizar (⌘F)")} onClick={() => exec('find')} />
+                <Big icon={<Replace size={I} strokeWidth={1.5} />} label="Substituir" title={kt("Substituir (⌥⌘F)")} onClick={() => exec('replace')} />
                 <Stack>
-                  <Small icon={<ChevronDown size={S} />} label="Próxima" title="Próxima ocorrência (⌘G)" onClick={() => exec('findNext')} />
-                  <Small icon={<ChevronUp size={S} />} label="Anterior" title="Ocorrência anterior (⇧⌘G)" onClick={() => exec('findPrev')} />
+                  <Small icon={<ChevronDown size={S} />} label="Próxima" title={kt("Próxima ocorrência (⌘G)")} onClick={() => exec('findNext')} />
+                  <Small icon={<ChevronUp size={S} />} label="Anterior" title={kt("Ocorrência anterior (⇧⌘G)")} onClick={() => exec('findPrev')} />
                   <Small icon={<XIcon size={S} />} label="Fechar Busca" onClick={() => exec('closeFind')} />
                 </Stack>
               </Group>
               <Group label="Seleção">
-                <Big icon={<TextSelect size={I} strokeWidth={1.5} />} label="Todas as Ocorrências" title="Um cursor em cada ocorrência da seleção (⇧⌘L)" onClick={() => exec('selectOccurrences')} />
-                <Big icon={<CopyPlus size={I} strokeWidth={1.5} />} label="Próxima Ocorrência" title="Adiciona a próxima ocorrência à seleção (⌘D)" onClick={() => exec('addNextOccurrence')} />
+                <Big icon={<TextSelect size={I} strokeWidth={1.5} />} label="Todas as Ocorrências" title={kt("Um cursor em cada ocorrência da seleção (⇧⌘L)")} onClick={() => exec('selectOccurrences')} />
+                <Big icon={<CopyPlus size={I} strokeWidth={1.5} />} label="Próxima Ocorrência" title={kt("Adiciona a próxima ocorrência à seleção (⌘D)")} onClick={() => exec('addNextOccurrence')} />
               </Group>
               <Group label="Navegação">
                 <Big icon={<CornerDownRight size={I} strokeWidth={1.5} />} label="Ir para Linha" onClick={() => exec('gotoLine')} />

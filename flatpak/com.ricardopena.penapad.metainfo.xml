@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>com.ricardopena.penapad</id>
+  <name>PenaPad</name>
+  <summary>Editor de texto e código leve</summary>
+  <summary xml:lang="en">Lightweight text and code editor</summary>
+  <developer id="io.github.ricardopenadev">
+    <name>Ricardo Pena</name>
+  </developer>
+  <metadata_license>MIT</metadata_license>
+  <project_license>MIT</project_license>
+  <url type="homepage">https://github.com/RicardoPenaDev/PenaPad</url>
+  <url type="bugtracker">https://github.com/RicardoPenaDev/PenaPad/issues</url>
+  <description>
+    <p>Editor de texto e código leve, no espírito do Notepad++. Abas, tela dividida, comparação de textos,
+      histórico de versões local, Substituir Tudo com prévia e paleta de comandos. Nada se perde ao fechar:
+      textos não salvos voltam como estavam.</p>
+  </description>
+  <launchable type="desktop-id">com.ricardopena.penapad.desktop</launchable>
+  <screenshots>
+    <screenshot type="default">
+      <image>https://raw.githubusercontent.com/RicardoPenaDev/PenaPad/main/docs/screenshots/01-principal.png</image>
+    </screenshot>
+  </screenshots>
+  <content_rating type="oars-1.1"/>
+  <releases>
+    <release version="1.1.0" date="2026-11-02"/>
+    <release version="1.0.0" date="2026-11-02"/>
+  </releases>
+</component>

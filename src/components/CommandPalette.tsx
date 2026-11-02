@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Check, Search } from 'lucide-react';
 import { score } from '../commands';
 import { storeGet, storeSet } from '../storage';
+import { keys } from '../platform';
 
 export interface PaletteItem {
   key: string;
@@ -110,7 +111,7 @@ export default function CommandPalette({ items, onRun, onCancel }: {
                 <span className="w-[86px] shrink-0 truncate text-[11px] text-[var(--text-3)]">{it.group}</span>
                 <span className="min-w-0 flex-1 truncate text-[12.5px]">{it.label}</span>
                 {it.on && <Check size={13} className="shrink-0 text-[var(--accent-text)]" />}
-                {it.keys && <kbd className="shrink-0 rounded border border-[var(--border)] px-1.5 font-sans text-[11px] text-[var(--text-2)]">{it.keys}</kbd>}
+                {it.keys && <kbd className="shrink-0 rounded border border-[var(--border)] px-1.5 font-sans text-[11px] text-[var(--text-2)]">{keys(it.keys)}</kbd>}
               </button>
             </div>
           ))}
