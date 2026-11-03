@@ -6,7 +6,7 @@ import {
   Pilcrow, Sun, Moon, Monitor, FoldVertical, UnfoldVertical, CornerDownRight, ChevronDown,
   ChevronUp, TextSelect, Code2, Braces, FileCode2, FileText, Hash, Terminal, Database, Globe, Palette,
   Maximize2, X as XIcon, Search as SearchIcon, Columns2, Rows2, ArrowLeftRight, RotateCw,
-  SquareDashed, Languages, ListX, ListMinus, History, ArrowLeftToLine, ArrowRightToLine, GitCompareArrows, MousePointerClick,
+  SquareDashed, Languages, Info, ListX, ListMinus, History, ArrowLeftToLine, ArrowRightToLine, GitCompareArrows, MousePointerClick,
 } from 'lucide-react';
 import { allLanguages, languageName } from '../monaco';
 import { kt } from '../platform';
@@ -169,6 +169,14 @@ export default function Ribbon({ exec, state }: { exec: Exec; state: RibbonState
           </button>
         ))}
         <div data-tauri-drag-region className="flex-1 self-stretch" />
+        <button
+          title={t('Sobre o PenaPad')}
+          aria-label={t('Sobre o PenaPad')}
+          onClick={() => exec('about')}
+          className="mb-1 rounded p-1 text-[var(--text-3)] hover:bg-[var(--hover)] hover:text-[var(--text-2)]"
+        >
+          <Info size={14} />
+        </button>
         <button
           title={collapsed ? t('Expandir a Faixa de Opções') : t('Recolher a Faixa de Opções')}
           onClick={() => setCollapsed(!collapsed)}

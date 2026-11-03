@@ -2,6 +2,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { getCurrentWebview } from '@tauri-apps/api/webview';
 import { getCurrentWindow } from '@tauri-apps/api/window';
+import { getVersion } from '@tauri-apps/api/app';
 import type { Encoding, FileStat, OpenedDoc } from './types';
 
 export interface HistoryEntry { id: string; ts: number; reason: string; size: number; lines: number; name: string }
@@ -38,7 +39,6 @@ export const api = {
   contextMenu: (p: { hasSelection: boolean; canUndo: boolean; canRedo: boolean }) => { invoke('show_context_menu', p); },
   setTitle: (title: string) => { invoke('set_title', { title }); },
   toggleFullscreen: () => { invoke('toggle_fullscreen'); },
-  about: () => { invoke('show_about'); },
   requestQuit: () => { invoke('request_quit_cmd'); },
   setTheme: (mode: 'system' | 'light' | 'dark') => { invoke('set_theme', { mode }); },
   /** Idioma dos menus e janelas nativas: 'auto' segue o sistema */
@@ -47,6 +47,9 @@ export const api = {
   updateCheck: () => invoke<import('./components/UpdateBanner').UpdateInfo | null>('update_check'),
   updateInstall: () => invoke<void>('update_install'),
   openReleases: (version?: string) => { invoke('open_releases', { version: version ?? null }); },
+  openLink: (kind: string) => { invoke('open_link', { kind }); },
+  donateEnabled: () => invoke<boolean>('donate_enabled').catch(() => false),
+  appVersion: () => getVersion().catch(() => '?'),
   /** Não deu para gravar a sessão ao sair: o app pergunta antes de fechar */
   quitBlocked: (error: string) => { invoke('quit_blocked', { error }); },
   /** Mostra a janela e devolve arquivos recebidos do Finder antes da interface carregar */

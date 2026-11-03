@@ -16,6 +16,8 @@ interface Init {
   saveAs?: string[];
   /** Simula disco sem espaço nas gravações da sessão */
   failSession?: boolean;
+  /** Mostra o botão de apoio (link configurado) */
+  donate?: boolean;
 }
 
 const init: Init = (window as unknown as { __ppInit?: Init }).__ppInit ?? {};
@@ -36,6 +38,7 @@ const state = {
   quit: false,
   quitBlocked: null as string | null,
   title: '',
+  opened: [] as string[],
   failSession: !!init.failSession,
   confirmClose: [...(init.confirmClose ?? [])],
   openFiles: [...(init.openFiles ?? [])],
@@ -93,6 +96,10 @@ const handlers: Record<string, (a: Args) => unknown> = {
   history_read: (a) => state.history.get(a.key)?.find((e) => e.id === a.id)?.content ?? '',
   history_rename: (a) => { const l = state.history.get(a.from); if (l) { state.history.set(a.to, l); state.history.delete(a.from); } },
   set_title: (a) => { state.title = a.title; },
+  'plugin:app|version': () => '1.2.1',
+  donate_enabled: () => !!init.donate,
+  open_link: (a) => { state.opened.push(a.kind); },
+  open_releases: (a) => { state.opened.push(`releases:${a.version}`); },
   quit: () => { state.quit = true; },
   quit_blocked: (a) => { state.quitBlocked = a.error; },
 };

@@ -51,6 +51,45 @@ pub async fn update_check(app: AppHandle) -> Result<Option<Info>, String> {
     Ok(Some(info))
 }
 
+/// Endereços que a interface pode abrir no navegador (lista fechada: a página não abre links arbitrários)
+pub const DONATE_URL: &str = ""; // ex.: "https://ko-fi.com/…" — vazio esconde o botão de apoio
+
+fn link_url(kind: &str) -> Option<String> {
+    const REPO: &str = "https://github.com/RicardoPenaDev/PenaPad";
+    Some(match kind {
+        "site" => REPO.to_string(),
+        "issues" => format!("{REPO}/issues/new"),
+        "license" => format!("{REPO}/blob/main/LICENSE"),
+        "notices" => format!("{REPO}/blob/main/THIRD_PARTY_NOTICES.md"),
+        "releases" => format!("{REPO}/releases"),
+        "donate" if !DONATE_URL.is_empty() => DONATE_URL.to_string(),
+        _ => return None,
+    })
+}
+
+fn open_in_browser(url: &str) {
+    #[cfg(target_os = "macos")]
+    let r = std::process::Command::new("open").arg(url).spawn();
+    #[cfg(target_os = "windows")]
+    let r = std::process::Command::new("explorer").arg(url).spawn();
+    #[cfg(all(unix, not(target_os = "macos")))]
+    let r = std::process::Command::new("xdg-open").arg(url).spawn();
+    let _ = r;
+}
+
+#[tauri::command]
+pub fn open_link(kind: String) {
+    if let Some(url) = link_url(&kind) {
+        open_in_browser(&url);
+    }
+}
+
+/// Se há link de apoio configurado (mostra o botão "Pague um café")
+#[tauri::command]
+pub fn donate_enabled() -> bool {
+    !DONATE_URL.is_empty()
+}
+
 /// Abre a página da versão no navegador
 #[tauri::command]
 pub fn open_releases(version: Option<String>) {
@@ -58,13 +97,7 @@ pub fn open_releases(version: Option<String>) {
         Some(v) if v.chars().all(|c| c.is_ascii_alphanumeric() || c == '.' || c == '-') => format!("https://github.com/RicardoPenaDev/PenaPad/releases/tag/v{v}"),
         _ => "https://github.com/RicardoPenaDev/PenaPad/releases/latest".to_string(),
     };
-    #[cfg(target_os = "macos")]
-    let r = std::process::Command::new("open").arg(&url).spawn();
-    #[cfg(target_os = "windows")]
-    let r = std::process::Command::new("explorer").arg(&url).spawn();
-    #[cfg(all(unix, not(target_os = "macos")))]
-    let r = std::process::Command::new("xdg-open").arg(&url).spawn();
-    let _ = r;
+    open_in_browser(&url);
 }
 
 /// Baixa, confere a assinatura, instala e reinicia. A interface já gravou a sessão antes de chamar.
@@ -74,4 +107,16 @@ pub async fn update_install(app: AppHandle) -> Result<(), String> {
     u.download_and_install(|_, _| {}, || {}).await.map_err(|e| e.to_string())?;
     crate::allow_exit(&app);
     app.restart();
+}
+
+#[cfg(test)]
+mod tests {
+    use super::link_url;
+
+    #[test]
+    fn so_abre_enderecos_conhecidos() {
+        assert_eq!(link_url("site").as_deref(), Some("https://github.com/RicardoPenaDev/PenaPad"));
+        assert!(link_url("https://exemplo.com").is_none());
+        assert!(link_url("../etc").is_none());
+    }
 }

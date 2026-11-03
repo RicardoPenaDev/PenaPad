@@ -10,8 +10,6 @@ pub(crate) use session::write_atomic;
 use serde::Serialize;
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
-#[cfg(target_os = "macos")]
-use tauri::menu::AboutMetadata;
 use tauri::menu::{MenuBuilder, MenuItemBuilder, PredefinedMenuItem, SubmenuBuilder};
 use tauri::{AppHandle, Emitter, Manager, RunEvent, Runtime, WebviewWindow, WindowEvent};
 use tauri_plugin_clipboard_manager::ClipboardExt;
@@ -567,21 +565,6 @@ fn request_quit_cmd(app: AppHandle) {
     request_quit(&app);
 }
 
-#[tauri::command]
-fn show_about(app: AppHandle, window: WebviewWindow) {
-    let v = app.package_info().version.to_string();
-    app.dialog()
-        .message(if en() {
-            format!("Version {v}\n\nA lightweight text and code editor, in the spirit of Notepad++.\n\n© 2026 Ricardo Pena · MIT License\ngithub.com/RicardoPenaDev/PenaPad\n\nBuilt with Tauri, React and Monaco Editor (MIT, © Microsoft).")
-        } else {
-            format!("Versão {v}\n\nEditor de texto e código leve, no espírito do Notepad++.\n\n© 2026 Ricardo Pena · Licença MIT\ngithub.com/RicardoPenaDev/PenaPad\n\nFeito com Tauri, React e Monaco Editor (MIT, © Microsoft).")
-        })
-        .title(tr("Sobre o PenaPad"))
-        .kind(MessageDialogKind::Info)
-        .parent(&window)
-        .show(|_| {});
-}
-
 /// Arquivos recebidos pela linha de comando ("Abrir com…" no Windows/Linux), relativos à pasta de onde foi chamado
 #[cfg(not(target_os = "macos"))]
 fn paths_from_args<I: IntoIterator<Item = String>>(args: I, cwd: &Path) -> Vec<PathBuf> {
@@ -626,19 +609,9 @@ fn build_menu<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<tauri::menu::Menu
     };
     let sep = || PredefinedMenuItem::separator(app);
 
-    let about = AboutMetadata {
-        name: Some("PenaPad".into()),
-        version: Some(app.package_info().version.to_string()),
-        comments: Some(tr("Editor de texto e código leve.").into()),
-        website: Some("https://github.com/RicardoPenaDev/PenaPad".into()),
-        website_label: Some("github.com/RicardoPenaDev/PenaPad".into()),
-        copyright: Some(tr("© 2026 Ricardo Pena · Licença MIT").into()),
-        credits: Some(tr("Feito com Tauri, React e Monaco Editor (MIT, © Microsoft). Componentes de terceiros: THIRD_PARTY_NOTICES.md no repositório.").into()),
-        ..Default::default()
-    };
 
     let app_menu = SubmenuBuilder::new(app, tr("PenaPad"))
-        .item(&PredefinedMenuItem::about(app, Some(tr("Sobre o PenaPad")), Some(about))?)
+        .item(&it("about", tr("Sobre o PenaPad"), None)?)
         .item(&it("checkUpdates", tr("Procurar Atualizações…"), None)?)
         .item(&sep()?)
         .item(&PredefinedMenuItem::services(app, Some(tr("Serviços")))?)
@@ -814,11 +787,12 @@ pub fn run() {
             set_title,
             set_theme,
             toggle_fullscreen,
-            show_about,
             set_language,
             update::update_check,
             update::update_install,
             update::open_releases,
+            update::open_link,
+            update::donate_enabled,
             request_quit_cmd,
             quit,
             quit_blocked,

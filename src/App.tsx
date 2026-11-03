@@ -25,6 +25,7 @@ import { formatSize, formatWhen, historyKey, REASONS } from './historyFormat';
 import { translateProblem } from './jsonProblems';
 import ExternalBanner from './components/ExternalBanner';
 import UpdateBanner, { type UpdateInfo } from './components/UpdateBanner';
+import AboutDialog, { type LinkKind } from './components/AboutDialog';
 import { t as tr, langPref, num, plural, setLangPref } from './i18n';
 
 // Evita redesenhar a faixa de opções e as abas a cada movimento do cursor
@@ -490,6 +491,9 @@ export default function App() {
 
   // ---------- Atualizações (Releases do GitHub) ----------
   const [update, setUpdate] = useState<UpdateInfo | null>(null);
+  const [about, setAbout] = useState(false);
+  const [appInfo, setAppInfo] = useState({ version: '', donate: false });
+  useEffect(() => { Promise.all([api.appVersion(), api.donateEnabled()]).then(([version, donate]) => setAppInfo({ version, donate })); }, []);
   const [updating, setUpdating] = useState(false);
   const checkUpdatesRef = useRef<(quiet: boolean) => Promise<void>>(async () => {});
   checkUpdatesRef.current = async (quiet: boolean) => {
@@ -1115,7 +1119,7 @@ export default function App() {
       case 'closeFind': setFind((f) => ({ ...f, open: false })); ed?.focus(); break;
       case 'palette': setPalette(true); break;
       case 'fullscreen': api.toggleFullscreen(); break;
-      case 'about': api.about(); break;
+      case 'about': setAbout(true); break;
       case 'quit': api.requestQuit(); break;
     }
   }, [addTab, openDoc, saveTab, closeTab, patchTab, toggleSplit, moveOther, flash, reopenClosed, startCompare, runLineOp, closeDiff, showHistory, checkExternal, keepMine, reloadFromDisk, openExternalDiff, restoreVersion]);
@@ -1229,6 +1233,7 @@ export default function App() {
     columnSel,
     palette,
     lastKey: lastKeyRef.current,
+    about,
     update: update ? { ...update, updating } : null,
     focusEl: (document.activeElement as HTMLElement | null)?.getAttribute('placeholder') ?? document.activeElement?.tagName ?? null,
     modal: (document.querySelector('[data-modal]') as HTMLElement | null)?.innerText.slice(0, 1500) ?? null,
@@ -1286,10 +1291,10 @@ export default function App() {
       on: c.cmd === 'theme' ? settings.theme === c.arg : c.cmd === 'uiLang' ? langPref() === c.arg : on[c.cmd],
     }));
     items.push({ key: 'palette', label: tr('Paleta de Comandos'), group: tr('Visualizar'), keys: '⇧⌘P' });
+    items.push({ key: 'about', label: tr('Sobre o PenaPad'), group: tr('Ajuda'), alt: 'versão licença github about version' });
     if (!IS_MAC) {
       // No Mac ficam no menu do app
       items.push({ key: 'fullscreen', label: tr('Tela Cheia'), group: tr('Visualizar'), keys: 'F11' });
-      items.push({ key: 'about', label: tr('Sobre o PenaPad'), group: tr('Ajuda'), alt: 'versão licença about' });
       items.push({ key: 'quit', label: tr('Sair do PenaPad'), group: tr('Arquivo'), keys: '⌘Q', alt: 'fechar encerrar exit' });
     }
     for (const t of tabs) items.push({ key: `tab:${t.id}`, label: t.name + (t.dirty ? ' •' : ''), group: tr('Ir para Aba'), alt: t.path ?? '' });
@@ -1412,6 +1417,16 @@ export default function App() {
           hint={kt((editor?.getSelection()?.isEmpty() ?? true) ? 'Será aplicado em todas as linhas do documento. ⌘Z desfaz.' : 'Será aplicado nas linhas selecionadas. ⌘Z desfaz.')}
           onCancel={() => { setPrompt(null); editor?.focus(); }}
           onOk={(v) => { const op = prompt; setPrompt(null); runLineOp(op, v); }}
+        />
+      )}
+      {about && (
+        <AboutDialog
+          version={appInfo.version}
+          donate={appInfo.donate}
+          onClose={() => { setAbout(false); editor?.focus(); }}
+          onCheckUpdates={() => { setAbout(false); exec('checkUpdates'); }}
+          onReleaseNotes={() => api.openReleases(appInfo.version)}
+          onOpen={(k: LinkKind) => api.openLink(k)}
         />
       )}
       {palette && (
