@@ -45,7 +45,7 @@ jobs:
       matrix:
         include:
           - os: macos-latest
-            args: --target universal-apple-darwin --bundles dmg
+            args: --target universal-apple-darwin --bundles app,dmg
             rust_targets: aarch64-apple-darwin,x86_64-apple-darwin
           - os: windows-latest
             args: --bundles nsis
