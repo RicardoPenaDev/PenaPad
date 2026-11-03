@@ -44,6 +44,9 @@ export const api = {
   /** Idioma dos menus e janelas nativas: 'auto' segue o sistema */
   setLanguage: (pref: 'auto' | 'pt' | 'en') => { invoke('set_language', { pref }).catch(() => {}); },
   quit: () => { invoke('quit'); },
+  updateCheck: () => invoke<import('./components/UpdateBanner').UpdateInfo | null>('update_check'),
+  updateInstall: () => invoke<void>('update_install'),
+  openReleases: (version?: string) => { invoke('open_releases', { version: version ?? null }); },
   /** Não deu para gravar a sessão ao sair: o app pergunta antes de fechar */
   quitBlocked: (error: string) => { invoke('quit_blocked', { error }); },
   /** Mostra a janela e devolve arquivos recebidos do Finder antes da interface carregar */

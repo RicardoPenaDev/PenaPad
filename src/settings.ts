@@ -2,7 +2,7 @@
 import type { Settings } from './appTypes';
 import { storeGet } from './storage';
 
-export const DEFAULT_SETTINGS: Settings = { wordWrap: false, minimap: false, lineNumbers: true, whitespace: false, theme: 'system', zoom: 100, splitDir: 'row' };
+export const DEFAULT_SETTINGS: Settings = { wordWrap: false, minimap: false, lineNumbers: true, whitespace: false, theme: 'system', zoom: 100, splitDir: 'row', autoUpdate: true };
 export const BASE_FONT = 13.5;
 
 export function loadSettings(): Settings {

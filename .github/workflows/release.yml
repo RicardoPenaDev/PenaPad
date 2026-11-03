@@ -78,12 +78,26 @@ jobs:
 
       - run: npm test
 
+      # Arquivos de atualização automática (latest.json + assinaturas) só com a chave configurada nos segredos
+      - name: Assinatura das atualizações
+        id: sign
+        shell: bash
+        env:
+          KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+        run: |
+          if [ -n "$KEY" ]; then echo "extra=" >> "$GITHUB_OUTPUT"; else
+            echo "::warning::TAURI_SIGNING_PRIVATE_KEY não configurado: versão sem atualização automática"
+            echo "extra=--config {\"bundle\":{\"createUpdaterArtifacts\":false}}" >> "$GITHUB_OUTPUT"
+          fi
+
       - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ''
         with:
           releaseId: ${{ needs.release.outputs.id }}
-          args: ${{ matrix.args }}
+          args: ${{ matrix.args }} ${{ steps.sign.outputs.extra }}
 
       - name: Guardar o .deb para o Flatpak
         if: runner.os == 'Linux'

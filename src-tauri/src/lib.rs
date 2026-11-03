@@ -1,6 +1,7 @@
 mod history;
 mod i18n;
 mod session;
+mod update;
 
 use i18n::{en, tr};
 
@@ -544,6 +545,11 @@ fn toggle_fullscreen(window: WebviewWindow) {
     let _ = window.set_fullscreen(!on);
 }
 
+/// Deixa o app encerrar sem gravar de novo a sessão (a interface já gravou)
+pub(crate) fn allow_exit<R: Runtime>(app: &AppHandle<R>) {
+    app.state::<State>().lock().unwrap().force_quit = true;
+}
+
 /// Idioma dos menus e janelas (a interface manda ao abrir e quando o usuário troca)
 #[tauri::command]
 fn set_language(app: AppHandle, pref: String) -> Result<(), String> {
@@ -633,6 +639,7 @@ fn build_menu<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<tauri::menu::Menu
 
     let app_menu = SubmenuBuilder::new(app, tr("PenaPad"))
         .item(&PredefinedMenuItem::about(app, Some(tr("Sobre o PenaPad")), Some(about))?)
+        .item(&it("checkUpdates", tr("Procurar Atualizações…"), None)?)
         .item(&sep()?)
         .item(&PredefinedMenuItem::services(app, Some(tr("Serviços")))?)
         .item(&sep()?)
@@ -747,7 +754,9 @@ pub fn run() {
     builder
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_clipboard_manager::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(Mutex::new(state))
+        .manage(update::Pending::default())
         .setup(|app| {
             // Idioma antes de montar o menu (a escolha gravada, ou o do sistema)
             if let Ok(dir) = session_dir(app.handle()) {
@@ -807,6 +816,9 @@ pub fn run() {
             toggle_fullscreen,
             show_about,
             set_language,
+            update::update_check,
+            update::update_install,
+            update::open_releases,
             request_quit_cmd,
             quit,
             quit_blocked,

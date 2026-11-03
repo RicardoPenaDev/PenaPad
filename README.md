@@ -28,7 +28,10 @@
   editor que usa. Instalador de 3 a 7 MB; cerca de 165 MB de memória aberto e vazio e 235 MB com cinco arquivos
   de código abertos ([como foi medido](#desempenho)).
 - **Do jeito de cada sistema.** No Mac, menus nativos e atalhos com ⌘; no Windows e no Linux, a barra de janela
-  do sistema e atalhos com Ctrl. Clique direito nativo, tema claro e escuro, em português.
+  do sistema e atalhos com Ctrl. Clique direito nativo, tema claro e escuro.
+- **Português e inglês.** Segue o idioma do sistema; dá para trocar em **Visualizar → Idioma**.
+- **Atualiza sozinho.** Quando sai uma versão nova, aparece um aviso discreto; um clique baixa, confere a assinatura
+  e reinicia com as abas como estavam (no Linux, pelo AppImage; `.deb`, `.rpm` e Flatpak avisam e levam à página).
 
 ## Recursos
 
@@ -133,7 +136,8 @@ O pacote Flatpak usa o runtime GNOME 50 do Flathub. Se ele ainda não estiver in
 
 ### Onde ficam os dados
 Tudo fica só no seu computador: `session.json` e `backup/` (textos abertos) e `history/` (versões: até 50 por
-documento, 30 dias, 200 MB no total). O PenaPad não se conecta à internet.
+documento, 30 dias, 200 MB no total). O PenaPad só se conecta à internet para procurar versões novas (uma vez por dia, no GitHub); dá para desligar
+em **Ajuda → Procurar Atualizações Automaticamente** na paleta de comandos.
 
 | Sistema | Pasta |
 |---|---|
@@ -153,7 +157,7 @@ git clone https://github.com/RicardoPenaDev/PenaPad.git
 cd PenaPad
 npm install
 npm start          # abre em modo de desenvolvimento
-npm run check      # tipos + testes da interface + testes da parte nativa
+npm run check      # tipos + testes de unidade + testes da interface (Playwright) + testes da parte nativa
 npx tauri build    # gera os instaladores do sistema em que você está
 npx tauri build --target universal-apple-darwin --bundles dmg   # Mac: Apple Silicon + Intel
 ```
@@ -174,7 +178,9 @@ src-tauri/src/      parte nativa (Rust)
   lib.rs            arquivos, menus nativos, comandos
   session.rs        sessão em disco (abas e textos não salvos)
   history.rs        histórico de versões em disco
-tests/              testes da interface (Vitest)
+tests/              testes de unidade (Vitest)
+e2e/                testes da interface no navegador (Playwright, parte nativa simulada)
+src/locales/en.ts   tradução para o inglês
 flatpak/            manifesto do pacote Flatpak
 ```
 
@@ -220,7 +226,8 @@ O PenaPad é um projeto independente, sem relação com o Notepad++ ou com a Mic
 **PenaPad** is a lightweight, free and open-source text and code editor for macOS, Windows and Linux, inspired by Notepad++.
 Unsaved drafts are restored when you reopen it (saved to disk about a second after you stop typing), and it has tabs, split view, text compare, local version history, Replace All
 with preview, a command palette (`⇧⌘P` / `Ctrl+Shift+P`), line tools, multi-cursor and JSON formatting.
-Built with Tauri 2 + Monaco. The interface is in Brazilian Portuguese.
+Built with Tauri 2 + Monaco. The interface is available in English and Brazilian Portuguese (it follows your
+system language) and the app updates itself.
 [Download](https://github.com/RicardoPenaDev/PenaPad/releases): macOS 11+ (universal `.dmg`), Windows 10/11 (`.exe`),
 Linux x86_64 (`.AppImage`, `.deb`, `.rpm`, `.flatpak`).
 MIT licensed.

@@ -28,6 +28,7 @@ export interface Settings {
   theme: ThemeMode;
   zoom: number;
   splitDir: 'row' | 'col'; // lado a lado | um em cima do outro
+  autoUpdate: boolean; // procura versões novas uma vez por dia
 }
 
 export interface RestoreInfo { id: string; dirty: boolean; metaDirty: boolean; language: string; view: monaco.editor.ICodeEditorViewState | null; pane: Pane }

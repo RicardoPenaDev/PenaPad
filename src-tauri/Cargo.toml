@@ -1,6 +1,6 @@
 [package]
 name = "penapad"
-version = "1.1.1"
+version = "1.2.0"
 description = "Editor de texto e código leve para macOS, Windows e Linux"
 authors = ["Ricardo Pena"]
 license = "MIT"
@@ -21,6 +21,7 @@ tauri-plugin-clipboard-manager = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 sys-locale = "0.3"
+tauri-plugin-updater = "2"
 
 [target.'cfg(not(target_os = "macos"))'.dependencies]
 tauri-plugin-single-instance = "2"

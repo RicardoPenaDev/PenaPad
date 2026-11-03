@@ -13,7 +13,7 @@ import PickDialog, { type PickItem } from './components/PickDialog';
 import { applyLineOp, type LineOp } from './lineOps';
 import CommandPalette, { type PaletteItem } from './components/CommandPalette';
 import { COMMANDS } from './commands';
-import { storeSet } from './storage';
+import { storeGet, storeSet } from './storage';
 import { IS_MAC, kt } from './platform';
 import { parseSession, planRestore, type Pane, type SessionMeta } from './session';
 import { shortcutFor } from './shortcuts';
@@ -24,6 +24,7 @@ import { EDITOR_OPTIONS, editorFocused, inputFocused, runFormat } from './editor
 import { formatSize, formatWhen, historyKey, REASONS } from './historyFormat';
 import { translateProblem } from './jsonProblems';
 import ExternalBanner from './components/ExternalBanner';
+import UpdateBanner, { type UpdateInfo } from './components/UpdateBanner';
 import { t as tr, langPref, num, plural, setLangPref } from './i18n';
 
 // Evita redesenhar a faixa de opções e as abas a cada movimento do cursor
@@ -486,6 +487,43 @@ export default function App() {
   }, []);
   const flashRef = useRef(flash);
   flashRef.current = flash;
+
+  // ---------- Atualizações (Releases do GitHub) ----------
+  const [update, setUpdate] = useState<UpdateInfo | null>(null);
+  const [updating, setUpdating] = useState(false);
+  const checkUpdatesRef = useRef<(quiet: boolean) => Promise<void>>(async () => {});
+  checkUpdatesRef.current = async (quiet: boolean) => {
+    try {
+      const u = await api.updateCheck();
+      storeSet('update.lastCheck', String(Date.now()));
+      if (!u) { if (!quiet) flash(tr('Você está usando a versão mais recente do PenaPad')); return; }
+      if (quiet && storeGet('update.skip') === u.version) return; // "Agora Não" nesta versão
+      setUpdate(u);
+    } catch (e) {
+      console.error('atualização', e);
+      if (!quiet) flash(tr('Não foi possível procurar atualizações: {e}', { e: String(e) }));
+    }
+  };
+  const installUpdateRef = useRef<() => Promise<void>>(async () => {});
+  installUpdateRef.current = async () => {
+    if (!update || updating) return;
+    setUpdating(true);
+    try {
+      await flush(); // as abas voltam como estão depois de reiniciar
+      await api.updateInstall();
+    } catch (e) {
+      setUpdating(false);
+      flash(tr('⚠ A atualização não pôde ser instalada: {e}', { e: String(e) }));
+    }
+  };
+  // Procura uma vez por dia, alguns segundos depois de abrir
+  useEffect(() => {
+    if (!settings.autoUpdate) return;
+    const last = Number(storeGet('update.lastCheck') ?? 0);
+    if (Date.now() - last < 20 * 3600_000) return;
+    const id = window.setTimeout(() => checkUpdatesRef.current(true), 8000);
+    return () => window.clearTimeout(id);
+  }, [settings.autoUpdate]);
 
   // ---------- Reabrir aba fechada (⇧⌘T) ----------
   const closedStack = useRef<ClosedTab[]>([]);
@@ -1042,6 +1080,9 @@ export default function App() {
       case 'selectOccurrences': run('editor.action.selectHighlights'); break;
       case 'addNextOccurrence': run('editor.action.addSelectionToNextFindMatch'); break;
       case 'wordWrap': setSettings((s) => ({ ...s, wordWrap: !s.wordWrap })); break;
+      case 'autoUpdate': setSettings((s) => ({ ...s, autoUpdate: !s.autoUpdate })); break;
+      case 'checkUpdates': await checkUpdatesRef.current(false); break;
+      case 'installUpdate': await installUpdateRef.current(); break;
       case 'minimap': setSettings((s) => ({ ...s, minimap: !s.minimap })); break;
       case 'lineNumbers': setSettings((s) => ({ ...s, lineNumbers: !s.lineNumbers })); break;
       case 'whitespace': setSettings((s) => ({ ...s, whitespace: !s.whitespace })); break;
@@ -1188,6 +1229,7 @@ export default function App() {
     columnSel,
     palette,
     lastKey: lastKeyRef.current,
+    update: update ? { ...update, updating } : null,
     focusEl: (document.activeElement as HTMLElement | null)?.getAttribute('placeholder') ?? document.activeElement?.tagName ?? null,
     modal: (document.querySelector('[data-modal]') as HTMLElement | null)?.innerText.slice(0, 1500) ?? null,
     selection: editor?.getSelections()?.map((x) => x.toString()) ?? [],
@@ -1233,7 +1275,7 @@ export default function App() {
     if (!palette) return [];
     const on: Record<string, boolean> = {
       wordWrap: settings.wordWrap, minimap: settings.minimap, lineNumbers: settings.lineNumbers,
-      whitespace: settings.whitespace, split, columnSelection: columnSel,
+      whitespace: settings.whitespace, split, columnSelection: columnSel, autoUpdate: settings.autoUpdate,
     };
     const items: PaletteItem[] = COMMANDS.map((c) => ({
       key: c.arg ? `${c.cmd}:${c.arg}` : c.cmd,
@@ -1300,6 +1342,15 @@ export default function App() {
               <button className="flex h-[26px] items-center rounded-md bg-[var(--accent)] px-2 text-[12px] text-white hover:brightness-110" title={tr("Mantém o seu texto; ao salvar, ele substitui o do disco")} onClick={() => { const id = diff.tabId!; closeDiff(); keepMine(id); }}>{tr('Manter Minha Versão')}</button>
             </>
           ) : undefined}
+        />
+      )}
+      {update && (
+        <UpdateBanner
+          info={update}
+          busy={updating}
+          onInstall={() => exec('installUpdate')}
+          onDetails={() => api.openReleases(update.version)}
+          onLater={() => { storeSet('update.skip', update.version); setUpdate(null); }}
         />
       )}
       <div ref={paneBox} className={`flex min-h-0 flex-1 ${settings.splitDir === 'row' ? 'flex-row' : 'flex-col'}`}>

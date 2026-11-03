@@ -57,6 +57,7 @@ fn english(pt: &str) -> Option<&'static str> {
         "Ocultar Outros" => "Hide Others",
         "Mostrar Tudo" => "Show All",
         "Encerrar PenaPad" => "Quit PenaPad",
+        "Procurar Atualizações…" => "Check for Updates…",
         "Novo" => "New",
         "Abrir…" => "Open…",
         "Salvar" => "Save",
