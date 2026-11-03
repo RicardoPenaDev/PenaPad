@@ -13,8 +13,8 @@
   <url type="bugtracker">https://github.com/RicardoPenaDev/PenaPad/issues</url>
   <description>
     <p>Editor de texto e código leve, no espírito do Notepad++. Abas, tela dividida, comparação de textos,
-      histórico de versões local, Substituir Tudo com prévia e paleta de comandos. Nada se perde ao fechar:
-      textos não salvos voltam como estavam.</p>
+      histórico de versões local, Substituir Tudo com prévia e paleta de comandos. Rascunhos não salvos
+      são recuperados ao reabrir.</p>
   </description>
   <launchable type="desktop-id">com.ricardopena.penapad.desktop</launchable>
   <screenshots>

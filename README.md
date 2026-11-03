@@ -6,7 +6,7 @@
 
 <p align="center">
   Editor de texto e código leve para macOS, Windows e Linux, no espírito do Notepad++.<br>
-  Abas, tela dividida, comparação de textos, histórico de versões e nada se perde ao fechar.
+  Abas, tela dividida, comparação de textos, histórico de versões e rascunhos recuperados ao reabrir.
 </p>
 
 <p align="center">
@@ -18,8 +18,10 @@
 
 ## Por que o PenaPad
 
-- **Nada se perde ao fechar.** Feche o app com textos não salvos: na próxima vez eles voltam exatamente como estavam,
-  com as abas, a posição do cursor e a tela dividida. Sem perguntas ao sair.
+- **Seus rascunhos são recuperados ao reabrir.** Feche o app com textos não salvos: na próxima vez eles voltam como
+  estavam, com as abas, a posição do cursor e a tela dividida. Sem perguntas ao sair. O texto é guardado em disco
+  cerca de 1 segundo depois que você para de digitar; num travamento ou desligamento repentino, só o último segundo
+  de digitação pode se perder ([detalhes](#como-o-penapad-protege-o-que-você-escreve)).
 - **Histórico de versões local.** O PenaPad guarda versões do texto em disco (ao abrir, ao salvar, a cada 5 minutos
   e antes de qualquer troca grande). Dá para comparar com a versão atual e restaurar.
 - **Leve.** Usa o WebView do próprio sistema (não leva um navegador inteiro junto) e carrega só as partes do
@@ -216,7 +218,7 @@ O PenaPad é um projeto independente, sem relação com o Notepad++ ou com a Mic
 ### English
 
 **PenaPad** is a lightweight, free and open-source text and code editor for macOS, Windows and Linux, inspired by Notepad++.
-Unsaved text survives quitting, and it has tabs, split view, text compare, local version history, Replace All
+Unsaved drafts are restored when you reopen it (saved to disk about a second after you stop typing), and it has tabs, split view, text compare, local version history, Replace All
 with preview, a command palette (`⇧⌘P` / `Ctrl+Shift+P`), line tools, multi-cursor and JSON formatting.
 Built with Tauri 2 + Monaco. The interface is in Brazilian Portuguese.
 [Download](https://github.com/RicardoPenaDev/PenaPad/releases): macOS 11+ (universal `.dmg`), Windows 10/11 (`.exe`),
