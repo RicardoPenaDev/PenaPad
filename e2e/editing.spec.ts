@@ -66,7 +66,10 @@ test('reabrir aba fechada traz o texto de volta', async ({ page }) => {
   await openApp(page, { confirmClose: ['discard'] });
   await typeInEditor(page, 'quase perdido');
   await page.keyboard.press('ControlOrMeta+N');
-  await page.locator('[data-tab-id]').first().click();
+  await expect.poll(async () => (await debug(page)).tabs.length).toBe(2);
+  const first = (await debug(page)).tabs[0].id;
+  await page.locator(`[data-tab-id="${first}"]`).click();
+  await expect.poll(async () => (await debug(page)).actives[0]).toBe(first);
   await cmd(page, 'close');
   await expect.poll(async () => (await debug(page)).tabs.length).toBe(1);
   await page.keyboard.press('ControlOrMeta+Shift+T');

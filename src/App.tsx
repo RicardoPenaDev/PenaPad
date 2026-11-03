@@ -7,175 +7,29 @@ import Ribbon, { type RibbonState } from './components/Ribbon';
 import TabBar from './components/TabBar';
 import FindPanel, { type FindController } from './components/FindPanel';
 import StatusBar, { type Problem, type StatusInfo } from './components/StatusBar';
-import DiffView, { type DiffSide } from './components/DiffView';
+import DiffView from './components/DiffView';
 import PromptDialog from './components/PromptDialog';
 import PickDialog, { type PickItem } from './components/PickDialog';
 import { applyLineOp, type LineOp } from './lineOps';
 import CommandPalette, { type PaletteItem } from './components/CommandPalette';
 import { COMMANDS } from './commands';
-import { storeGet, storeSet } from './storage';
-import { IS_MAC, keys, kt } from './platform';
+import { storeSet } from './storage';
+import { IS_MAC, kt } from './platform';
 import { parseSession, planRestore, type Pane, type SessionMeta } from './session';
+import { shortcutFor } from './shortcuts';
+import type { ClosedTab, DiffState, Ed, RestoreInfo, Settings, Tab } from './appTypes';
+import { BASE_FONT, clampRatio, clampZoom, loadSettings } from './settings';
+import { MAX_CLOSED, MAX_CLOSED_CHARS } from './appTypes';
+import { EDITOR_OPTIONS, editorFocused, inputFocused, runFormat } from './editorSetup';
+import { formatSize, formatWhen, historyKey, REASONS } from './historyFormat';
+import { translateProblem } from './jsonProblems';
+import ExternalBanner from './components/ExternalBanner';
 
 // Evita redesenhar a faixa de opções e as abas a cada movimento do cursor
 const RibbonM = memo(Ribbon);
 const TabBarM = memo(TabBar);
 
-type Ed = monaco.editor.IStandaloneCodeEditor;
-
-interface Tab {
-  pane: Pane; // 0 = vista principal, 1 = segunda vista (tela dividida)
-  id: string;
-  name: string;
-  path: string | null;
-  language: string;
-  encoding: Encoding;
-  eol: Eol;
-  dirty: boolean;
-  metaDirty: boolean; // ex.: codificação alterada
-}
-
-type ThemeMode = 'system' | 'light' | 'dark';
-
-interface Settings {
-  wordWrap: boolean;
-  minimap: boolean;
-  lineNumbers: boolean;
-  whitespace: boolean;
-  theme: ThemeMode;
-  zoom: number;
-  splitDir: 'row' | 'col'; // lado a lado | um em cima do outro
-}
-
-const DEFAULT_SETTINGS: Settings = { wordWrap: false, minimap: false, lineNumbers: true, whitespace: false, theme: 'system', zoom: 100, splitDir: 'row' };
-const BASE_FONT = 13.5;
-
-function loadSettings(): Settings {
-  try { return { ...DEFAULT_SETTINGS, ...JSON.parse(storeGet('settings') || '{}') }; }
-  catch { return DEFAULT_SETTINGS; }
-}
-
-const clampZoom = (z: number) => Math.max(50, Math.min(300, Math.round(z / 10) * 10));
-
 let untitledCounter = 0;
-
-interface RestoreInfo { id: string; dirty: boolean; metaDirty: boolean; language: string; view: monaco.editor.ICodeEditorViewState | null; pane: Pane }
-
-const EDITOR_OPTIONS: monaco.editor.IStandaloneEditorConstructionOptions = {
-  model: null,
-  automaticLayout: true,
-  fontFamily: "ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Monaco, 'Cascadia Mono', Consolas, 'DejaVu Sans Mono', 'Liberation Mono', 'Ubuntu Mono', monospace",
-  fontSize: BASE_FONT,
-  lineHeight: 1.55,
-  fontLigatures: false,
-  smoothScrolling: true,
-  cursorBlinking: 'smooth',
-  cursorSmoothCaretAnimation: 'on',
-  padding: { top: 10, bottom: 10 },
-  scrollBeyondLastLine: false,
-  roundedSelection: true,
-  renderLineHighlight: 'all',
-  bracketPairColorization: { enabled: true },
-  guides: { bracketPairs: 'active', indentation: true },
-  stickyScroll: { enabled: false },
-  dropIntoEditor: { enabled: false },
-  multiCursorModifier: 'ctrlCmd', // Option+arrastar = seleção em coluna; Cmd+clique = cursor extra
-  folding: true,
-  showFoldingControls: 'mouseover',
-  scrollbar: { verticalScrollbarSize: 11, horizontalScrollbarSize: 11, useShadows: false },
-  fixedOverflowWidgets: true,
-  contextmenu: false, // usamos o menu nativo do macOS
-  wordBasedSuggestions: 'currentDocument',
-  links: false,
-  hover: { enabled: 'off' },
-};
-
-const clampRatio = (r: number) => Math.max(0.15, Math.min(0.85, r));
-
-/** Aba fechada guardada para ⇧⌘T. Arquivos sem alterações não guardam o texto (é relido do disco). */
-interface ClosedTab {
-  name: string;
-  path: string | null;
-  language: string;
-  encoding: Encoding;
-  eol: Eol;
-  content: string | null;
-  wasDirty: boolean;
-  view: monaco.editor.ICodeEditorViewState | null;
-  pane: Pane;
-  disk: FileStat | null;
-}
-const MAX_CLOSED = 10;
-const MAX_CLOSED_CHARS = 20_000_000; // ~40 MB de texto no total
-
-interface DiffState { original: DiffSide; modified: DiffSide; temp: monaco.editor.ITextModel[]; kind: 'tabs' | 'external' | 'history'; tabId?: string; when?: string }
-
-/** Chave do histórico: arquivos pelo caminho (continua ao reabrir), textos sem arquivo pela aba */
-const historyKey = (t: { id: string; path: string | null }) => (t.path ? `f:${t.path}` : `u:${t.id}`);
-
-const REASONS: Record<string, string> = {
-  aberto: 'Ao abrir o arquivo',
-  salvo: 'Salvo',
-  auto: 'Automático (durante a edição)',
-  fechado: 'Aba fechada sem salvar',
-  recarregar: 'Antes de recarregar do disco',
-  sobrescrever: 'Versão do disco antes de sobrescrever',
-  restaurar: 'Antes de restaurar uma versão',
-};
-
-function formatWhen(ts: number): string {
-  const d = new Date(ts);
-  const time = d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-  const today = new Date();
-  const yest = new Date(today.getTime() - 86_400_000);
-  if (d.toDateString() === today.toDateString()) return `hoje às ${time}`;
-  if (d.toDateString() === yest.toDateString()) return `ontem às ${time}`;
-  return `${d.toLocaleDateString('pt-BR')} às ${time}`;
-}
-const formatSize = (n: number) => (n < 1024 ? `${n} bytes` : n < 1048576 ? `${(n / 1024).toFixed(1)} KB` : `${(n / 1048576).toFixed(1)} MB`);
-
-// Mensagens do validador de JSON (em inglês) → português
-const JSON_MSGS: [RegExp, string][] = [
-  [/^Expected comma or closing bracket/i, 'falta uma vírgula ou o colchete de fechamento ( ] )'],
-  [/^Expected comma or closing brace/i, 'falta uma vírgula ou a chave de fechamento ( } )'],
-  [/^Expected comma/i, 'falta uma vírgula'],
-  [/^Colon expected/i, 'falta o dois-pontos ( : ) depois da chave'],
-  [/^Value expected/i, 'falta um valor'],
-  [/^Property expected/i, 'falta uma propriedade'],
-  [/^Property keys must be doublequoted/i, 'as chaves precisam estar entre aspas duplas'],
-  [/^Trailing comma/i, 'vírgula sobrando antes do fechamento'],
-  [/^End of file expected/i, 'há conteúdo depois do fim do JSON'],
-  [/^Comments are not permitted/i, 'comentários não são permitidos em JSON'],
-  [/^(Unexpected end of string|Unterminated string)/i, 'texto (string) sem as aspas de fechamento'],
-  [/^Closing bracket expected/i, 'falta o colchete de fechamento ( ] )'],
-  [/^Closing brace expected/i, 'falta a chave de fechamento ( } )'],
-  [/^Duplicate object key/i, 'chave repetida no mesmo objeto'],
-  [/^Invalid number format/i, 'número em formato inválido'],
-  [/^Invalid escape character/i, 'caractere de escape ( \\ ) inválido no texto'],
-  [/^Invalid unicode sequence/i, 'sequência unicode ( \\u ) inválida'],
-  [/^Invalid characters in string/i, 'caractere de controle (ex.: TAB ou quebra de linha) dentro do texto; use \\t ou \\n'],
-  [/^Invalid symbol/i, 'símbolo inválido'],
-  [/^Incorrect type/i, 'tipo incorreto'],
-];
-const translateProblem = (msg: string) => JSON_MSGS.find(([re]) => re.test(msg))?.[1] ?? msg;
-
-/** Executa "Formatar Documento" esperando o formatador carregar (o de JSON carrega sob demanda) */
-async function runFormat(ed: Ed): Promise<boolean> {
-  const deadline = Date.now() + 4000;
-  while (Date.now() < deadline) {
-    const a = ed.getAction('editor.action.formatDocument');
-    if (a?.isSupported()) { await a.run(); return true; }
-    await new Promise((r) => setTimeout(r, 100));
-  }
-  return false;
-}
-
-const editorFocused = () => !!(document.activeElement as HTMLElement | null)?.closest?.('.monaco-editor');
-
-const inputFocused = () => {
-  const el = document.activeElement as HTMLElement | null;
-  return !!el && (el.tagName === 'INPUT' || el.tagName === 'SELECT') && !el.closest('.monaco-editor');
-};
 
 export default function App() {
   const [tabs, setTabs] = useState<Tab[]>([]);
@@ -1228,46 +1082,12 @@ export default function App() {
   useEffect(() => {
     const h = (e: KeyboardEvent) => {
       lastKeyRef.current = `${e.ctrlKey ? 'C' : ''}${e.shiftKey ? 'S' : ''}${e.altKey ? 'A' : ''}${e.metaKey ? 'M' : ''} key=${e.key} code=${e.code}`;
-      const letter = e.code.startsWith('Key') ? e.code.slice(3).toLowerCase() : e.key.toLowerCase();
-      let cmd: string | null = null;
-      // Tecla de comando: ⌘ no Mac, Ctrl no Windows/Linux (sem Alt, para não pegar o AltGr dos teclados brasileiros)
-      const mod = IS_MAC ? e.metaKey && !e.ctrlKey : e.ctrlKey && !e.metaKey && !e.altKey;
-      if (!IS_MAC && mod && letter === 'h' && !e.shiftKey) cmd = 'replace';
-      else if (!IS_MAC && mod && letter === 'g' && !e.shiftKey) cmd = 'gotoLine';
-      else if (!IS_MAC && e.key === 'F3' && !e.ctrlKey && !e.altKey && !e.metaKey) cmd = e.shiftKey ? 'findPrev' : 'findNext';
-      else if (!IS_MAC && mod && letter === 'q' && !e.shiftKey) cmd = 'quit';
-      else if (!IS_MAC && e.key === 'F11' && !e.ctrlKey && !e.altKey && !e.shiftKey) cmd = 'fullscreen';
-      else if (mod) {
-        if (letter === 'n' && !e.shiftKey && !e.altKey) cmd = 'new';
-        else if (letter === 'o' && !e.shiftKey && !e.altKey) cmd = 'open';
-        else if (letter === 's' && !e.altKey) cmd = e.shiftKey ? 'saveAs' : 'save';
-        else if (letter === 'w' && !e.shiftKey && !e.altKey) cmd = 'close';
-        else if (letter === 'f') cmd = e.altKey ? 'replace' : 'find';
-        else if (letter === 'g' && !e.altKey && IS_MAC) cmd = e.shiftKey ? 'findPrev' : 'findNext';
-        else if (e.key === '=' || e.key === '+' || e.code === 'Equal' || e.code === 'NumpadAdd') cmd = 'zoomIn';
-        else if (e.key === '-' || e.code === 'Minus' || e.code === 'NumpadSubtract') cmd = 'zoomOut';
-        else if (e.key === '0' || e.code === 'Digit0' || e.code === 'Numpad0') cmd = 'zoomReset';
-        else if (e.key === '/' || e.code === 'Slash' || e.code === 'NumpadDivide' || e.code === 'IntlRo') cmd = 'comment';
-        else if (e.code === 'Backslash' && !e.shiftKey && !e.altKey) cmd = 'split';
-        else if (letter === 't' && e.shiftKey && !e.altKey) cmd = 'reopenClosed';
-        else if (letter === 'h' && e.shiftKey && !e.altKey) cmd = 'history';
-        else if (letter === 'p' && e.shiftKey && !e.altKey) cmd = 'palette';
-        else if (letter === 'd' && !e.shiftKey && !e.altKey && editorFocused()) cmd = 'addNextOccurrence';
-        else if (letter === 'l' && e.shiftKey && !e.altKey && editorFocused()) cmd = 'selectOccurrences';
-        else if (letter === 'k' && e.shiftKey && !e.altKey && editorFocused()) cmd = 'deleteLine';
-      } else if (IS_MAC && e.ctrlKey && !e.metaKey && letter === 'g') cmd = 'gotoLine';
-      else if (e.altKey && !e.metaKey && !e.ctrlKey && e.code === 'KeyZ') cmd = 'wordWrap';
-      else if (e.altKey && e.shiftKey && !e.metaKey && !e.ctrlKey && e.code === 'KeyF') cmd = 'format';
-      else if (e.altKey && !e.metaKey && !e.ctrlKey && editorFocused() && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
-        cmd = e.shiftKey ? (e.key === 'ArrowDown' ? 'duplicate' : null) : e.key === 'ArrowUp' ? 'moveUp' : 'moveDown';
-      }
-      else if (e.key === 'Escape' && findOpenRef.current && !document.querySelector('[data-modal]') && !(e.target as HTMLElement)?.closest?.('.monaco-editor .suggest-widget')) cmd = 'closeFind';
-
-      if (!cmd && !IS_MAC && (e.key === 'F5' || (mod && (letter === 'r' || (!e.shiftKey && (letter === 'p' || letter === 'j' || letter === 'u')))))) {
-        // Atalhos do navegador embutido (recarregar, imprimir, downloads…): não fazem sentido num editor
-        e.preventDefault();
-        return;
-      }
+      const cmd = shortcutFor(e, {
+        isMac: IS_MAC,
+        editorFocused: editorFocused(),
+        findClosable: findOpenRef.current && !document.querySelector('[data-modal]') && !(e.target as HTMLElement)?.closest?.('.monaco-editor .suggest-widget'),
+      });
+      if (cmd === 'block') { e.preventDefault(); return; }
       if (cmd) {
         e.preventDefault();
         e.stopPropagation();
@@ -1549,34 +1369,3 @@ export default function App() {
 }
 
 /** Aviso no topo da vista quando outro programa altera ou apaga o arquivo */
-function ExternalBanner({ kind, name, onCompare, onReload, onKeep, onClose }: {
-  kind: 'modified' | 'deleted';
-  name: string;
-  onCompare: () => void;
-  onReload: () => void;
-  onKeep: () => void;
-  onClose: () => void;
-}) {
-  const btn = 'h-[24px] rounded-md px-2 text-[12px] hover:bg-[var(--hover)] whitespace-nowrap';
-  return (
-    <div className="flex shrink-0 flex-wrap items-center gap-x-2 gap-y-1 border-b border-[var(--warn-border)] bg-[var(--warn-bg)] px-3 py-1.5 text-[12px] text-[var(--warn-text)]">
-      <span className="min-w-0 flex-1">
-        {kind === 'modified'
-          ? <>⚠ <b>{name}</b> foi alterado por outro programa, e você tem alterações não salvas aqui.</>
-          : <>⚠ <b>{name}</b> foi apagado ou movido no disco. O texto continua aqui.</>}
-      </span>
-      {kind === 'modified' ? (
-        <>
-          <button className={`${btn} font-semibold`} onClick={onCompare}>Comparar</button>
-          <button className={btn} title={kt("Troca o seu texto pela versão do disco (⌘Z desfaz)")} onClick={onReload}>Recarregar do Disco</button>
-          <button className={btn} title="Mantém o seu texto; ao salvar, ele substitui o do disco" onClick={onKeep}>Manter Minha Versão</button>
-        </>
-      ) : (
-        <>
-          <button className={`${btn} font-semibold`} title={kt("Mantém a aba aberta como não salva; ⌘S grava de novo")} onClick={onKeep}>Manter no Editor</button>
-          <button className={btn} onClick={onClose}>Fechar Aba</button>
-        </>
-      )}
-    </div>
-  );
-}
