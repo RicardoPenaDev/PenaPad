@@ -1,7 +1,7 @@
 {
   "name": "penapad",
   "productName": "PenaPad",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Editor de texto e código leve para macOS, Windows e Linux",
   "author": "Ricardo Pena",
   "license": "MIT",
