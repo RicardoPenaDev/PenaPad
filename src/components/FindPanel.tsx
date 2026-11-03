@@ -3,6 +3,7 @@ import { CaseSensitive, ChevronDown, ChevronRight, ChevronUp, Regex, Replace, Re
 import { monaco } from '../monaco';
 import ReplacePreview, { type PreviewSpan, type Seg } from './ReplacePreview';
 import { IS_MAC, kt } from '../platform';
+import { t, num } from '../i18n';
 
 type Editor = monaco.editor.IStandaloneCodeEditor;
 
@@ -45,7 +46,7 @@ function buildPreview(model: monaco.editor.ITextModel, list: monaco.editor.FindM
     for (let k = 0; k < g.length; k++) {
       const m = g[k];
       if (k === MAX_HITS_SHOWN_PER_SPAN) {
-        const more = { text: ` … +${g.length - k} nesta linha`, hit: false };
+        const more = { text: ` … +${g.length - k} ${t('nesta linha')}`, hit: false };
         before.push(more); after.push(more);
         pos = text.length;
         break;
@@ -253,7 +254,7 @@ export default function FindPanel({ editor, showReplace, focusToken, onToggleRep
     }
   };
 
-  const countLabel = !query ? '' : error ? 'Regex inválida' : matches.length === 0 ? 'Sem resultados' : `${current >= 0 ? current + 1 : '?'} de ${matches.length.toLocaleString('pt-BR')}`;
+  const countLabel = !query ? '' : error ? t('Regex inválida') : matches.length === 0 ? t('Sem resultados') : t('{i} de {n}', { i: current >= 0 ? current + 1 : '?', n: num(matches.length) });
 
   const inputCls = 'h-[26px] w-full rounded-md border bg-[var(--surface)] px-2 text-[12.5px] outline-none transition-colors focus:border-[var(--accent)] select-text';
 
@@ -272,7 +273,7 @@ export default function FindPanel({ editor, showReplace, focusToken, onToggleRep
     )}
     <div className="absolute top-2 right-5 z-30 w-[440px] rounded-xl border border-[var(--border)] bg-[var(--chrome-2)]/95 p-2 shadow-[var(--shadow)] backdrop-blur-xl">
       <div className="flex items-start gap-1.5">
-        <button title="Alternar Substituir" onClick={onToggleReplace} className="mt-[3px] rounded p-0.5 text-[var(--text-2)] hover:bg-[var(--hover)]">
+        <button title={t("Alternar Substituir")} onClick={onToggleReplace} className="mt-[3px] rounded p-0.5 text-[var(--text-2)] hover:bg-[var(--hover)]">
           {showReplace ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
         </button>
         <div className="flex flex-1 flex-col gap-1.5">
@@ -283,7 +284,7 @@ export default function FindPanel({ editor, showReplace, focusToken, onToggleRep
                 value={query}
                 onChange={(e) => onQueryChange(e.target.value)}
                 onKeyDown={(e) => keys(e, false)}
-                placeholder="Localizar"
+                placeholder={t("Localizar")}
                 spellCheck={false}
                 className={`${inputCls} pr-[78px] ${error ? 'border-red-500' : 'border-[var(--border-strong)]'}`}
               />
@@ -295,8 +296,8 @@ export default function FindPanel({ editor, showReplace, focusToken, onToggleRep
             </div>
             <span className={`w-[78px] shrink-0 text-center text-[11px] ${error || (query && !matches.length) ? 'text-red-500' : 'text-[var(--text-3)]'}`}>{countLabel}</span>
             <button title={kt("Anterior (⇧↩)")} onClick={prev} className="rounded p-1 text-[var(--text-2)] hover:bg-[var(--hover)]"><ChevronUp size={14} /></button>
-            <button title="Próximo (↩)" onClick={next} className="rounded p-1 text-[var(--text-2)] hover:bg-[var(--hover)]"><ChevronDown size={14} /></button>
-            <button title="Fechar (Esc)" onClick={onClose} className="rounded p-1 text-[var(--text-2)] hover:bg-[var(--hover)]"><X size={14} /></button>
+            <button title={t("Próximo (↩)")} onClick={next} className="rounded p-1 text-[var(--text-2)] hover:bg-[var(--hover)]"><ChevronDown size={14} /></button>
+            <button title={t("Fechar (Esc)")} onClick={onClose} className="rounded p-1 text-[var(--text-2)] hover:bg-[var(--hover)]"><X size={14} /></button>
           </div>
           {showReplace && (
             <div className="flex items-center gap-1">
@@ -304,15 +305,15 @@ export default function FindPanel({ editor, showReplace, focusToken, onToggleRep
                 value={replacement}
                 onChange={(e) => setReplacement(e.target.value)}
                 onKeyDown={(e) => keys(e, true)}
-                placeholder={regex ? 'Substituir ($1, $2… para grupos)' : 'Substituir'}
+                placeholder={regex ? t('Substituir ($1, $2… para grupos)') : t('Substituir')}
                 spellCheck={false}
                 className={`${inputCls} border-[var(--border-strong)]`}
               />
-              <button title="Substituir (↩)" onClick={replaceOne} className="flex h-[26px] items-center gap-1 rounded-md px-2 text-[12px] hover:bg-[var(--hover)]">
-                <Replace size={13} /> Substituir
+              <button title={t("Substituir (↩)")} onClick={replaceOne} className="flex h-[26px] items-center gap-1 rounded-md px-2 text-[12px] hover:bg-[var(--hover)]">
+                <Replace size={13} /> {t('Substituir')}
               </button>
               <button title={kt("Substituir Tudo… mostra antes o que vai mudar (⌘↩)")} onClick={replaceAll} className="flex h-[26px] items-center gap-1 rounded-md bg-[var(--accent)] px-2 text-[12px] text-white hover:brightness-110">
-                <ReplaceAll size={13} /> Tudo
+                <ReplaceAll size={13} /> {t('Tudo')}
               </button>
             </div>
           )}

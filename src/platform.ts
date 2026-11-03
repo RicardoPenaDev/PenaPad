@@ -1,4 +1,5 @@
 // Diferenças entre macOS, Windows e Linux: tecla de comando e como os atalhos aparecem na tela.
+import { t } from './i18n';
 
 export const IS_MAC = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
 
@@ -28,8 +29,9 @@ export function keys(mac: string): string {
   return [...order, key].join('+');
 }
 
-/** Troca os atalhos dentro de um texto ("Salvar (⌘S)", "⌘ + clique") pelo formato do sistema */
-export function kt(text: string): string {
+/** Traduz o texto e troca os atalhos ("Salvar (⌘S)", "⌘ + clique") pelo formato do sistema */
+export function kt(pt: string, vars?: Record<string, string | number>): string {
+  const text = t(pt, vars);
   if (IS_MAC) return text;
   return text
     .replace(/([⌃⌥⇧⌘]+) \+ /g, (_, mods: string) => `${keys(mods + 'X').replace(/\+X$/, '')} + `)

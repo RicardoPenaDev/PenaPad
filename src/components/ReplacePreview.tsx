@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { kt } from '../platform';
+import { t, num, plural } from '../i18n';
 
 /** Um trecho do documento (uma ou mais linhas seguidas) com as ocorrências que serão trocadas */
 export interface PreviewSpan {
@@ -80,7 +81,7 @@ export default function ReplacePreview({ spans, total, capped, find, replacement
   const shown = spans.slice(0, MAX_SHOWN);
   // Com ocorrências que atravessam linhas, cada item da lista é um "trecho" (várias linhas seguidas)
   const multi = spans.some((x) => x.endLine > x.line);
-  const unit = (n: number) => multi ? (n === 1 ? 'trecho' : 'trechos') : (n === 1 ? 'linha' : 'linhas');
+  const unit = (n: number) => (multi ? plural(n, 'trecho', 'trechos') : plural(n, 'linha', 'linhas'));
 
   return createPortal(
     <div data-modal className="fixed inset-0 z-50 flex items-start justify-center bg-black/25 pt-[7vh]" onMouseDown={onCancel}>
@@ -91,17 +92,17 @@ export default function ReplacePreview({ spans, total, capped, find, replacement
         onMouseDown={(e) => e.stopPropagation()}
       >
         <div className="border-b border-[var(--border)] px-4 py-3">
-          <div className="text-[13px] font-semibold">Prévia do Substituir Tudo</div>
+          <div className="text-[13px] font-semibold">{t('Prévia do Substituir Tudo')}</div>
           <div className="mt-0.5 truncate text-[12px] text-[var(--text-2)]">
             <span className="rp-del font-mono">{show(find)}</span>
             <span className="mx-1.5">→</span>
-            <span className="rp-add font-mono">{show(replacement) || '(apagar)'}</span>
+            <span className="rp-add font-mono">{show(replacement) || t('(apagar)')}</span>
             <span className="ml-2">
-              {total.toLocaleString('pt-BR')} {total === 1 ? 'ocorrência' : 'ocorrências'} em {spans.length.toLocaleString('pt-BR')} {unit(spans.length)}
+              {num(total)} {plural(total, 'ocorrência', 'ocorrências')} {t('em')} {num(spans.length)} {unit(spans.length)}
             </span>
           </div>
           {capped && (
-            <div className="mt-1 text-[11.5px] text-[var(--warn-text)]">⚠ Limite de 20.000 ocorrências por vez. Depois de substituir, repita para trocar o restante.</div>
+            <div className="mt-1 text-[11.5px] text-[var(--warn-text)]">{t('⚠ Limite de 20.000 ocorrências por vez. Depois de substituir, repita para trocar o restante.')}</div>
           )}
         </div>
         <div className="lang-list min-h-0 flex-1 overflow-auto">
@@ -119,21 +120,21 @@ export default function ReplacePreview({ spans, total, capped, find, replacement
           ))}
           {spans.length > MAX_SHOWN && (
             <div className="px-4 py-2 text-[11.5px] text-[var(--text-3)]">
-              Mostrando os primeiros {MAX_SHOWN.toLocaleString('pt-BR')} itens. Os outros {(spans.length - MAX_SHOWN).toLocaleString('pt-BR')} também serão substituídos.
+              {t('Mostrando os primeiros {n} itens. Os outros {rest} também serão substituídos.', { n: num(MAX_SHOWN), rest: num(spans.length - MAX_SHOWN) })}
             </div>
           )}
         </div>
         <div className="flex items-center gap-2 border-t border-[var(--border)] px-4 py-2.5">
-          <button className="h-[26px] rounded-md px-2 text-[12px] hover:bg-[var(--hover)]" onClick={() => setAll(true)}>Marcar Todas</button>
-          <button className="h-[26px] rounded-md px-2 text-[12px] hover:bg-[var(--hover)]" onClick={() => setAll(false)}>Desmarcar Todas</button>
+          <button className="h-[26px] rounded-md px-2 text-[12px] hover:bg-[var(--hover)]" onClick={() => setAll(true)}>{t('Marcar Todas')}</button>
+          <button className="h-[26px] rounded-md px-2 text-[12px] hover:bg-[var(--hover)]" onClick={() => setAll(false)}>{t('Desmarcar Todas')}</button>
           <span className="ml-auto text-[11.5px] text-[var(--text-3)]">{kt('⌘Z desfaz depois')}</span>
-          <button className="h-[28px] rounded-md px-3 text-[12px] hover:bg-[var(--hover)]" onClick={onCancel}>Cancelar</button>
+          <button className="h-[28px] rounded-md px-3 text-[12px] hover:bg-[var(--hover)]" onClick={onCancel}>{t('Cancelar')}</button>
           <button
             disabled={!chosen}
             className="h-[28px] rounded-md bg-[var(--accent)] px-3 text-[12px] text-white hover:brightness-110 disabled:opacity-40"
             onClick={() => onApply(skip)}
           >
-            Substituir {chosen.toLocaleString('pt-BR')} {chosen === 1 ? 'ocorrência' : 'ocorrências'}{chosenLines !== spans.length ? ` (${chosenLines} ${unit(chosenLines)})` : ''}
+            {t('Substituir')} {num(chosen)} {plural(chosen, 'ocorrência', 'ocorrências')}{chosenLines !== spans.length ? ` (${chosenLines} ${unit(chosenLines)})` : ''}
           </button>
         </div>
       </div>

@@ -1,5 +1,8 @@
 mod history;
+mod i18n;
 mod session;
+
+use i18n::{en, tr};
 
 pub(crate) use session::write_atomic;
 
@@ -134,7 +137,7 @@ fn read_many<R: Runtime>(app: &AppHandle<R>, paths: &[PathBuf]) -> Vec<Doc> {
             Err(e) => {
                 app.dialog()
                     .message(format!("{}\n\n{}", p.display(), e))
-                    .title("Não foi possível abrir o arquivo")
+                    .title(tr("Não foi possível abrir o arquivo"))
                     .kind(MessageDialogKind::Error)
                     .show(|_| {});
             }
@@ -190,7 +193,7 @@ async fn save_as(app: AppHandle, window: WebviewWindow, content: String, encodin
         .dialog()
         .file()
         .set_parent(&window)
-        .set_file_name(suggested_name.unwrap_or_else(|| "Sem título.txt".into()))
+        .set_file_name(suggested_name.unwrap_or_else(|| tr("Sem título.txt").into()))
         .blocking_save_file();
     let Some(fp) = chosen else { return Ok(None) };
     let p = fp.into_path().map_err(|e| e.to_string())?;
@@ -203,17 +206,17 @@ async fn save_as(app: AppHandle, window: WebviewWindow, content: String, encodin
 async fn confirm_close(app: AppHandle, window: WebviewWindow, name: String) -> String {
     let r = app
         .dialog()
-        .message("Suas alterações serão perdidas se você não salvá-las.")
-        .title(format!("Deseja salvar as alterações em \"{name}\"?"))
+        .message(tr("Suas alterações serão perdidas se você não salvá-las."))
+        .title(if en() { format!("Do you want to save the changes to \"{name}\"?") } else { format!("Deseja salvar as alterações em \"{name}\"?") })
         .kind(MessageDialogKind::Warning)
         .parent(&window)
-        .buttons(MessageDialogButtons::YesNoCancelCustom("Salvar".into(), "Não Salvar".into(), "Cancelar".into()))
+        .buttons(MessageDialogButtons::YesNoCancelCustom(tr("Salvar").into(), tr("Não Salvar").into(), tr("Cancelar").into()))
         .blocking_show_with_result();
     match r {
         MessageDialogResult::Yes => "save",
         MessageDialogResult::No => "discard",
-        MessageDialogResult::Custom(s) if s == "Salvar" => "save",
-        MessageDialogResult::Custom(s) if s == "Não Salvar" => "discard",
+        MessageDialogResult::Custom(s) if s == tr("Salvar") => "save",
+        MessageDialogResult::Custom(s) if s == tr("Não Salvar") => "discard",
         _ => "cancel",
     }
     .into()
@@ -229,17 +232,17 @@ async fn stat_paths(paths: Vec<String>) -> Vec<Option<Stat>> {
 async fn confirm_overwrite(app: AppHandle, window: WebviewWindow, name: String) -> String {
     let r = app
         .dialog()
-        .message("Se salvar agora, as alterações feitas fora do PenaPad serão perdidas. Você pode comparar as duas versões antes de decidir.")
-        .title(format!("\"{name}\" foi alterado por outro programa"))
+        .message(tr("Se salvar agora, as alterações feitas fora do PenaPad serão perdidas. Você pode comparar as duas versões antes de decidir."))
+        .title(if en() { format!("\"{name}\" was changed by another program") } else { format!("\"{name}\" foi alterado por outro programa") })
         .kind(MessageDialogKind::Warning)
         .parent(&window)
-        .buttons(MessageDialogButtons::YesNoCancelCustom("Comparar".into(), "Sobrescrever".into(), "Cancelar".into()))
+        .buttons(MessageDialogButtons::YesNoCancelCustom(tr("Comparar").into(), tr("Sobrescrever").into(), tr("Cancelar").into()))
         .blocking_show_with_result();
     match r {
         MessageDialogResult::Yes => "compare",
         MessageDialogResult::No => "overwrite",
-        MessageDialogResult::Custom(s) if s == "Comparar" => "compare",
-        MessageDialogResult::Custom(s) if s == "Sobrescrever" => "overwrite",
+        MessageDialogResult::Custom(s) if s == tr("Comparar") => "compare",
+        MessageDialogResult::Custom(s) if s == tr("Sobrescrever") => "overwrite",
         _ => "cancel",
     }
     .into()
@@ -266,13 +269,15 @@ fn quit_blocked(app: AppHandle, window: WebviewWindow, state: tauri::State<State
     state.lock().unwrap().quitting = false;
     let handle = app.clone();
     app.dialog()
-        .message(format!(
-            "Não foi possível guardar os textos não salvos ({error}).\n\nSe sair agora, as alterações feitas desde a última gravação podem se perder. Verifique se há espaço livre em disco, ou salve os arquivos antes de sair."
-        ))
-        .title("O PenaPad não conseguiu guardar a sessão")
+        .message(if en() {
+            format!("The unsaved texts could not be saved ({error}).\n\nIf you quit now, changes made since the last save may be lost. Check that there is free disk space, or save your files before quitting.")
+        } else {
+            format!("Não foi possível guardar os textos não salvos ({error}).\n\nSe sair agora, as alterações feitas desde a última gravação podem se perder. Verifique se há espaço livre em disco, ou salve os arquivos antes de sair.")
+        })
+        .title(tr("O PenaPad não conseguiu guardar a sessão"))
         .kind(MessageDialogKind::Warning)
         .parent(&window)
-        .buttons(MessageDialogButtons::OkCancelCustom("Continuar no PenaPad".into(), "Sair Mesmo Assim".into()))
+        .buttons(MessageDialogButtons::OkCancelCustom(tr("Continuar no PenaPad").into(), tr("Sair Mesmo Assim").into()))
         .show(move |keep| {
             if !keep {
                 handle.state::<State>().lock().unwrap().force_quit = true;
@@ -395,24 +400,24 @@ fn lines_submenu<R: Runtime>(app: &AppHandle<R>, prefix: &str) -> tauri::Result<
         }
         b.build(app)
     };
-    SubmenuBuilder::new(app, "Linhas")
-        .item(&it("duplicate", "Duplicar Linha", Some("Shift+Alt+Down"))?)
-        .item(&it("moveUp", "Mover Linha para Cima", Some("Alt+Up"))?)
-        .item(&it("moveDown", "Mover Linha para Baixo", Some("Alt+Down"))?)
-        .item(&it("deleteLine", "Excluir Linha", Some("CmdOrCtrl+Shift+K"))?)
+    SubmenuBuilder::new(app, tr("Linhas"))
+        .item(&it("duplicate", tr("Duplicar Linha"), Some("Shift+Alt+Down"))?)
+        .item(&it("moveUp", tr("Mover Linha para Cima"), Some("Alt+Up"))?)
+        .item(&it("moveDown", tr("Mover Linha para Baixo"), Some("Alt+Down"))?)
+        .item(&it("deleteLine", tr("Excluir Linha"), Some("CmdOrCtrl+Shift+K"))?)
         .item(&PredefinedMenuItem::separator(app)?)
-        .item(&it("sortAsc", "Ordenar (A→Z)", None)?)
-        .item(&it("sortDesc", "Ordenar (Z→A)", None)?)
-        .item(&it("dedupe", "Remover Linhas Duplicadas", None)?)
-        .item(&it("removeEmpty", "Remover Linhas Vazias", None)?)
-        .item(&it("trimBoth", "Remover Espaços no Início e no Fim", None)?)
-        .item(&it("trim", "Remover Espaços no Fim", None)?)
+        .item(&it("sortAsc", tr("Ordenar (A→Z)"), None)?)
+        .item(&it("sortDesc", tr("Ordenar (Z→A)"), None)?)
+        .item(&it("dedupe", tr("Remover Linhas Duplicadas"), None)?)
+        .item(&it("removeEmpty", tr("Remover Linhas Vazias"), None)?)
+        .item(&it("trimBoth", tr("Remover Espaços no Início e no Fim"), None)?)
+        .item(&it("trim", tr("Remover Espaços no Fim"), None)?)
         .item(&PredefinedMenuItem::separator(app)?)
-        .item(&it("prefix", "Adicionar Prefixo…", None)?)
-        .item(&it("suffix", "Adicionar Sufixo…", None)?)
+        .item(&it("prefix", tr("Adicionar Prefixo…"), None)?)
+        .item(&it("suffix", tr("Adicionar Sufixo…"), None)?)
         .item(&PredefinedMenuItem::separator(app)?)
-        .item(&it("upper", "MAIÚSCULAS", None)?)
-        .item(&it("lower", "minúsculas", None)?)
+        .item(&it("upper", tr("MAIÚSCULAS"), None)?)
+        .item(&it("lower", tr("minúsculas"), None)?)
         .build()
 }
 
@@ -424,12 +429,12 @@ fn selection_submenu<R: Runtime>(app: &AppHandle<R>, prefix: &str) -> tauri::Res
         }
         b.build(app)
     };
-    SubmenuBuilder::new(app, "Seleção e Cursores")
-        .item(&it("addNextOccurrence", "Selecionar Próxima Ocorrência", Some("CmdOrCtrl+D"), true)?)
-        .item(&it("selectOccurrences", "Selecionar Todas as Ocorrências", Some("CmdOrCtrl+Shift+L"), true)?)
+    SubmenuBuilder::new(app, tr("Seleção e Cursores"))
+        .item(&it("addNextOccurrence", tr("Selecionar Próxima Ocorrência"), Some("CmdOrCtrl+D"), true)?)
+        .item(&it("selectOccurrences", tr("Selecionar Todas as Ocorrências"), Some("CmdOrCtrl+Shift+L"), true)?)
         .item(&PredefinedMenuItem::separator(app)?)
-        .item(&it("columnSelection", if cfg!(target_os = "macos") { "Modo Seleção em Coluna (ou ⌥ + arrastar)" } else { "Modo Seleção em Coluna (ou Alt + arrastar)" }, None, true)?)
-        .item(&it("info-cursor", if cfg!(target_os = "macos") { "Cursor Extra: ⌘ + clique" } else { "Cursor Extra: Ctrl + clique" }, None, false)?)
+        .item(&it("columnSelection", tr(if cfg!(target_os = "macos") { "Modo Seleção em Coluna (ou ⌥ + arrastar)" } else { "Modo Seleção em Coluna (ou Alt + arrastar)" }), None, true)?)
+        .item(&it("info-cursor", tr(if cfg!(target_os = "macos") { "Cursor Extra: ⌘ + clique" } else { "Cursor Extra: Ctrl + clique" }), None, false)?)
         .build()
 }
 
@@ -449,20 +454,20 @@ fn show_context_menu(app: AppHandle, window: WebviewWindow, has_selection: bool,
         let lines = lines_submenu(&app, "ctx-")?;
         let selection = selection_submenu(&app, "ctx-")?;
         MenuBuilder::new(&app)
-            .item(&item("undo", "Desfazer", Some("CmdOrCtrl+Z"), can_undo)?)
-            .item(&item("redo", "Refazer", Some(if cfg!(target_os = "macos") { "CmdOrCtrl+Shift+Z" } else { "Ctrl+Y" }), can_redo)?)
+            .item(&item("undo", tr("Desfazer"), Some("CmdOrCtrl+Z"), can_undo)?)
+            .item(&item("redo", tr("Refazer"), Some(if cfg!(target_os = "macos") { "CmdOrCtrl+Shift+Z" } else { "Ctrl+Y" }), can_redo)?)
             .item(&sep()?)
-            .item(&item("cut", "Recortar", Some("CmdOrCtrl+X"), has_selection)?)
-            .item(&item("copy", "Copiar", Some("CmdOrCtrl+C"), has_selection)?)
-            .item(&item("paste", "Colar", Some("CmdOrCtrl+V"), true)?)
-            .item(&item("selectAll", "Selecionar Tudo", Some("CmdOrCtrl+A"), true)?)
+            .item(&item("cut", tr("Recortar"), Some("CmdOrCtrl+X"), has_selection)?)
+            .item(&item("copy", tr("Copiar"), Some("CmdOrCtrl+C"), has_selection)?)
+            .item(&item("paste", tr("Colar"), Some("CmdOrCtrl+V"), true)?)
+            .item(&item("selectAll", tr("Selecionar Tudo"), Some("CmdOrCtrl+A"), true)?)
             .item(&sep()?)
             .item(&selection)
             .item(&lines)
             .item(&sep()?)
-            .item(&item("comment", "Comentar/Descomentar Linha", Some("CmdOrCtrl+/"), true)?)
-            .item(&item("format", "Formatar Documento", Some("Shift+Alt+F"), true)?)
-            .item(&item("formatJson", "Formatar JSON", None, true)?)
+            .item(&item("comment", tr("Comentar/Descomentar Linha"), Some("CmdOrCtrl+/"), true)?)
+            .item(&item("format", tr("Formatar Documento"), Some("Shift+Alt+F"), true)?)
+            .item(&item("formatJson", tr("Formatar JSON"), None, true)?)
             .build()
     };
     let menu = build().map_err(|e| e.to_string())?;
@@ -478,9 +483,9 @@ fn show_tab_menu(app: AppHandle, window: WebviewWindow, tab_id: String, move_lab
     let menu = MenuBuilder::new(&app)
         .item(&MenuItemBuilder::with_id(format!("ctx-moveOther:{tab_id}"), move_label).build(&app).map_err(|e| e.to_string())?)
         .item(&PredefinedMenuItem::separator(&app).map_err(|e| e.to_string())?)
-        .item(&MenuItemBuilder::with_id(format!("ctx-closeTab:{tab_id}"), "Fechar Aba").build(&app).map_err(|e| e.to_string())?)
-        .item(&MenuItemBuilder::with_id(format!("ctx-history:{tab_id}"), "Histórico de Versões…").build(&app).map_err(|e| e.to_string())?)
-        .item(&MenuItemBuilder::with_id("ctx-reopenClosed", "Reabrir Aba Fechada").accelerator("CmdOrCtrl+Shift+T").build(&app).map_err(|e| e.to_string())?)
+        .item(&MenuItemBuilder::with_id(format!("ctx-closeTab:{tab_id}"), tr("Fechar Aba")).build(&app).map_err(|e| e.to_string())?)
+        .item(&MenuItemBuilder::with_id(format!("ctx-history:{tab_id}"), tr("Histórico de Versões…")).build(&app).map_err(|e| e.to_string())?)
+        .item(&MenuItemBuilder::with_id("ctx-reopenClosed", tr("Reabrir Aba Fechada")).accelerator("CmdOrCtrl+Shift+T").build(&app).map_err(|e| e.to_string())?)
         .build()
         .map_err(|e| e.to_string())?;
     window.popup_menu(&menu).map_err(|e| e.to_string())
@@ -539,6 +544,17 @@ fn toggle_fullscreen(window: WebviewWindow) {
     let _ = window.set_fullscreen(!on);
 }
 
+/// Idioma dos menus e janelas (a interface manda ao abrir e quando o usuário troca)
+#[tauri::command]
+fn set_language(app: AppHandle, pref: String) -> Result<(), String> {
+    let pref = match pref.as_str() { "pt" | "en" => pref, _ => "auto".into() };
+    if i18n::set(&session_dir(&app)?, &pref) {
+        #[cfg(target_os = "macos")]
+        app.set_menu(build_menu(&app).map_err(|e| e.to_string())?).map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
 /// Ctrl+Q no Windows/Linux: o mesmo caminho de fechar a janela (grava a sessão e sai)
 #[tauri::command]
 fn request_quit_cmd(app: AppHandle) {
@@ -549,10 +565,12 @@ fn request_quit_cmd(app: AppHandle) {
 fn show_about(app: AppHandle, window: WebviewWindow) {
     let v = app.package_info().version.to_string();
     app.dialog()
-        .message(format!(
-            "Versão {v}\n\nEditor de texto e código leve, no espírito do Notepad++.\n\n© 2026 Ricardo Pena · Licença MIT\ngithub.com/RicardoPenaDev/PenaPad\n\nFeito com Tauri, React e Monaco Editor (MIT, © Microsoft)."
-        ))
-        .title("Sobre o PenaPad")
+        .message(if en() {
+            format!("Version {v}\n\nA lightweight text and code editor, in the spirit of Notepad++.\n\n© 2026 Ricardo Pena · MIT License\ngithub.com/RicardoPenaDev/PenaPad\n\nBuilt with Tauri, React and Monaco Editor (MIT, © Microsoft).")
+        } else {
+            format!("Versão {v}\n\nEditor de texto e código leve, no espírito do Notepad++.\n\n© 2026 Ricardo Pena · Licença MIT\ngithub.com/RicardoPenaDev/PenaPad\n\nFeito com Tauri, React e Monaco Editor (MIT, © Microsoft).")
+        })
+        .title(tr("Sobre o PenaPad"))
         .kind(MessageDialogKind::Info)
         .parent(&window)
         .show(|_| {});
@@ -605,89 +623,96 @@ fn build_menu<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<tauri::menu::Menu
     let about = AboutMetadata {
         name: Some("PenaPad".into()),
         version: Some(app.package_info().version.to_string()),
-        comments: Some("Editor de texto e código leve.".into()),
+        comments: Some(tr("Editor de texto e código leve.").into()),
         website: Some("https://github.com/RicardoPenaDev/PenaPad".into()),
         website_label: Some("github.com/RicardoPenaDev/PenaPad".into()),
-        copyright: Some("© 2026 Ricardo Pena · Licença MIT".into()),
-        credits: Some("Feito com Tauri, React e Monaco Editor (MIT, © Microsoft). Componentes de terceiros: THIRD_PARTY_NOTICES.md no repositório.".into()),
+        copyright: Some(tr("© 2026 Ricardo Pena · Licença MIT").into()),
+        credits: Some(tr("Feito com Tauri, React e Monaco Editor (MIT, © Microsoft). Componentes de terceiros: THIRD_PARTY_NOTICES.md no repositório.").into()),
         ..Default::default()
     };
 
-    let app_menu = SubmenuBuilder::new(app, "PenaPad")
-        .item(&PredefinedMenuItem::about(app, Some("Sobre o PenaPad"), Some(about))?)
+    let app_menu = SubmenuBuilder::new(app, tr("PenaPad"))
+        .item(&PredefinedMenuItem::about(app, Some(tr("Sobre o PenaPad")), Some(about))?)
         .item(&sep()?)
-        .item(&PredefinedMenuItem::services(app, Some("Serviços"))?)
+        .item(&PredefinedMenuItem::services(app, Some(tr("Serviços")))?)
         .item(&sep()?)
-        .item(&PredefinedMenuItem::hide(app, Some("Ocultar PenaPad"))?)
-        .item(&PredefinedMenuItem::hide_others(app, Some("Ocultar Outros"))?)
-        .item(&PredefinedMenuItem::show_all(app, Some("Mostrar Tudo"))?)
+        .item(&PredefinedMenuItem::hide(app, Some(tr("Ocultar PenaPad")))?)
+        .item(&PredefinedMenuItem::hide_others(app, Some(tr("Ocultar Outros")))?)
+        .item(&PredefinedMenuItem::show_all(app, Some(tr("Mostrar Tudo")))?)
         .item(&sep()?)
-        .item(&it("quit", "Encerrar PenaPad", Some("CmdOrCtrl+Q"))?)
+        .item(&it("quit", tr("Encerrar PenaPad"), Some("CmdOrCtrl+Q"))?)
         .build()?;
 
-    let file = SubmenuBuilder::new(app, "Arquivo")
-        .item(&it("new", "Novo", Some("CmdOrCtrl+N"))?)
-        .item(&it("open", "Abrir…", Some("CmdOrCtrl+O"))?)
+    let file = SubmenuBuilder::new(app, tr("Arquivo"))
+        .item(&it("new", tr("Novo"), Some("CmdOrCtrl+N"))?)
+        .item(&it("open", tr("Abrir…"), Some("CmdOrCtrl+O"))?)
         .item(&sep()?)
-        .item(&it("save", "Salvar", Some("CmdOrCtrl+S"))?)
-        .item(&it("saveAs", "Salvar Como…", Some("CmdOrCtrl+Shift+S"))?)
+        .item(&it("save", tr("Salvar"), Some("CmdOrCtrl+S"))?)
+        .item(&it("saveAs", tr("Salvar Como…"), Some("CmdOrCtrl+Shift+S"))?)
         .item(&sep()?)
-        .item(&it("close", "Fechar Aba", Some("CmdOrCtrl+W"))?)
-        .item(&it("reopenClosed", "Reabrir Aba Fechada", Some("CmdOrCtrl+Shift+T"))?)
-        .item(&it("history", "Histórico de Versões…", Some("CmdOrCtrl+Shift+H"))?)
+        .item(&it("close", tr("Fechar Aba"), Some("CmdOrCtrl+W"))?)
+        .item(&it("reopenClosed", tr("Reabrir Aba Fechada"), Some("CmdOrCtrl+Shift+T"))?)
+        .item(&it("history", tr("Histórico de Versões…"), Some("CmdOrCtrl+Shift+H"))?)
         .item(&sep()?)
-        .item(&it("compare", "Comparar Textos…", None)?)
+        .item(&it("compare", tr("Comparar Textos…"), None)?)
         .build()?;
 
-    let edit = SubmenuBuilder::new(app, "Editar")
-        .item(&it("undo", "Desfazer", Some("CmdOrCtrl+Z"))?)
-        .item(&it("redo", "Refazer", Some("CmdOrCtrl+Shift+Z"))?)
+    let edit = SubmenuBuilder::new(app, tr("Editar"))
+        .item(&it("undo", tr("Desfazer"), Some("CmdOrCtrl+Z"))?)
+        .item(&it("redo", tr("Refazer"), Some("CmdOrCtrl+Shift+Z"))?)
         .item(&sep()?)
-        .item(&PredefinedMenuItem::cut(app, Some("Recortar"))?)
-        .item(&PredefinedMenuItem::copy(app, Some("Copiar"))?)
-        .item(&PredefinedMenuItem::paste(app, Some("Colar"))?)
-        .item(&it("selectAll", "Selecionar Tudo", Some("CmdOrCtrl+A"))?)
+        .item(&PredefinedMenuItem::cut(app, Some(tr("Recortar")))?)
+        .item(&PredefinedMenuItem::copy(app, Some(tr("Copiar")))?)
+        .item(&PredefinedMenuItem::paste(app, Some(tr("Colar")))?)
+        .item(&it("selectAll", tr("Selecionar Tudo"), Some("CmdOrCtrl+A"))?)
         .item(&sep()?)
         .item(&selection_submenu(app, "")?)
         .item(&lines_submenu(app, "")?)
         .item(&sep()?)
-        .item(&it("comment", "Comentar/Descomentar Linha", Some("CmdOrCtrl+/"))?)
-        .item(&it("format", "Formatar Documento", Some("Shift+Alt+F"))?)
-        .item(&it("formatJson", "Formatar JSON", None)?)
+        .item(&it("comment", tr("Comentar/Descomentar Linha"), Some("CmdOrCtrl+/"))?)
+        .item(&it("format", tr("Formatar Documento"), Some("Shift+Alt+F"))?)
+        .item(&it("formatJson", tr("Formatar JSON"), None)?)
         .item(&sep()?)
-        .item(&it("find", "Localizar…", Some("CmdOrCtrl+F"))?)
-        .item(&it("replace", "Substituir…", Some("CmdOrCtrl+Alt+F"))?)
-        .item(&it("findNext", "Localizar Próxima", Some("CmdOrCtrl+G"))?)
-        .item(&it("findPrev", "Localizar Anterior", Some("CmdOrCtrl+Shift+G"))?)
-        .item(&it("gotoLine", "Ir para Linha…", Some("Ctrl+G"))?)
+        .item(&it("find", tr("Localizar…"), Some("CmdOrCtrl+F"))?)
+        .item(&it("replace", tr("Substituir…"), Some("CmdOrCtrl+Alt+F"))?)
+        .item(&it("findNext", tr("Localizar Próxima"), Some("CmdOrCtrl+G"))?)
+        .item(&it("findPrev", tr("Localizar Anterior"), Some("CmdOrCtrl+Shift+G"))?)
+        .item(&it("gotoLine", tr("Ir para Linha…"), Some("Ctrl+G"))?)
         .build()?;
 
-    let view = SubmenuBuilder::new(app, "Visualizar")
-        .item(&it("palette", "Paleta de Comandos…", Some("CmdOrCtrl+Shift+P"))?)
+    let view = SubmenuBuilder::new(app, tr("Visualizar"))
+        .item(&it("palette", tr("Paleta de Comandos…"), Some("CmdOrCtrl+Shift+P"))?)
         .item(&sep()?)
-        .item(&it("wordWrap", "Quebra Automática de Linha", Some("Alt+Z"))?)
-        .item(&it("minimap", "Minimapa", None)?)
-        .item(&it("lineNumbers", "Números de Linha", None)?)
+        .item(&it("wordWrap", tr("Quebra Automática de Linha"), Some("Alt+Z"))?)
+        .item(&it("minimap", tr("Minimapa"), None)?)
+        .item(&it("lineNumbers", tr("Números de Linha"), None)?)
         .item(&sep()?)
-        .item(&it("split", "Dividir Tela", Some("CmdOrCtrl+\\"))?)
-        .item(&it("moveOther", "Mover Aba para o Outro Lado", None)?)
-        .item(&it("rotateSplit", "Alternar Lado a Lado / Empilhado", None)?)
-        .item(&it("compare", "Comparar Textos…", None)?)
+        .item(&it("split", tr("Dividir Tela"), Some("CmdOrCtrl+\\"))?)
+        .item(&it("moveOther", tr("Mover Aba para o Outro Lado"), None)?)
+        .item(&it("rotateSplit", tr("Alternar Lado a Lado / Empilhado"), None)?)
+        .item(&it("compare", tr("Comparar Textos…"), None)?)
         .item(&sep()?)
-        .item(&it("zoomIn", "Aumentar Zoom", Some("CmdOrCtrl+="))?)
-        .item(&it("zoomOut", "Diminuir Zoom", Some("CmdOrCtrl+-"))?)
-        .item(&it("zoomReset", "Zoom 100%", Some("CmdOrCtrl+0"))?)
+        .item(&it("zoomIn", tr("Aumentar Zoom"), Some("CmdOrCtrl+="))?)
+        .item(&it("zoomOut", tr("Diminuir Zoom"), Some("CmdOrCtrl+-"))?)
+        .item(&it("zoomReset", tr("Zoom 100%"), Some("CmdOrCtrl+0"))?)
         .item(&sep()?)
-        .item(&it("theme:light", "Tema Claro", None)?)
-        .item(&it("theme:dark", "Tema Escuro", None)?)
-        .item(&it("theme:system", "Tema do Sistema", None)?)
+        .item(&it("theme:light", tr("Tema Claro"), None)?)
+        .item(&it("theme:dark", tr("Tema Escuro"), None)?)
+        .item(&it("theme:system", tr("Tema do Sistema"), None)?)
+        .item(
+            &SubmenuBuilder::new(app, tr("Idioma"))
+                .item(&it("uiLang:auto", tr("Automático (do sistema)"), None)?)
+                .item(&it("uiLang:pt", "Português", None)?)
+                .item(&it("uiLang:en", "English", None)?)
+                .build()?,
+        )
         .item(&sep()?)
-        .item(&PredefinedMenuItem::fullscreen(app, Some("Tela Cheia"))?)
+        .item(&PredefinedMenuItem::fullscreen(app, Some(tr("Tela Cheia")))?)
         .build()?;
 
-    let window = SubmenuBuilder::new(app, "Janela")
-        .item(&PredefinedMenuItem::minimize(app, Some("Minimizar"))?)
-        .item(&PredefinedMenuItem::maximize(app, Some("Zoom"))?)
+    let window = SubmenuBuilder::new(app, tr("Janela"))
+        .item(&PredefinedMenuItem::minimize(app, Some(tr("Minimizar")))?)
+        .item(&PredefinedMenuItem::maximize(app, Some(tr("Zoom")))?)
         .build()?;
 
     MenuBuilder::new(app).items(&[&app_menu, &file, &edit, &view, &window]).build()
@@ -718,15 +743,20 @@ pub fn run() {
             }));
         }
     }
-    #[cfg(target_os = "macos")]
-    {
-        builder = builder.menu(build_menu);
-    }
 
     builder
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_clipboard_manager::init())
         .manage(Mutex::new(state))
+        .setup(|app| {
+            // Idioma antes de montar o menu (a escolha gravada, ou o do sistema)
+            if let Ok(dir) = session_dir(app.handle()) {
+                i18n::init(&dir);
+            }
+            #[cfg(target_os = "macos")]
+            app.set_menu(build_menu(app.handle())?)?;
+            Ok(())
+        })
         .on_menu_event(|app, event| {
             let id = event.id().as_ref();
             let id = id.strip_prefix("ctx-").unwrap_or(id);
@@ -776,6 +806,7 @@ pub fn run() {
             set_theme,
             toggle_fullscreen,
             show_about,
+            set_language,
             request_quit_cmd,
             quit,
             quit_blocked,

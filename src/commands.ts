@@ -67,6 +67,9 @@ export const COMMANDS: Command[] = [
   { cmd: 'theme', arg: 'light', label: 'Tema Claro', group: 'Visualizar' },
   { cmd: 'theme', arg: 'dark', label: 'Tema Escuro', group: 'Visualizar' },
   { cmd: 'theme', arg: 'system', label: 'Tema do Sistema', group: 'Visualizar' },
+  { cmd: 'uiLang', arg: 'auto', label: 'Idioma: Automático (do sistema)', group: 'Visualizar', alt: 'language idioma english inglês' },
+  { cmd: 'uiLang', arg: 'pt', label: 'Idioma: Português', group: 'Visualizar', alt: 'language idioma portuguese' },
+  { cmd: 'uiLang', arg: 'en', label: 'Idioma: English', group: 'Visualizar', alt: 'language idioma english inglês' },
   { cmd: 'detectLanguage', label: 'Detectar Linguagem pelo Nome do Arquivo', group: 'Linguagem' },
 ];
 

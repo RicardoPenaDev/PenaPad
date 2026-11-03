@@ -1,4 +1,6 @@
 // Textos do histórico de versões: motivo, data e tamanho
+import { locale, t } from './i18n';
+
 /** Chave do histórico: arquivos pelo caminho (continua ao reabrir), textos sem arquivo pela aba */
 export const historyKey = (t: { id: string; path: string | null }) => (t.path ? `f:${t.path}` : `u:${t.id}`);
 
@@ -14,12 +16,12 @@ export const REASONS: Record<string, string> = {
 
 export function formatWhen(ts: number): string {
   const d = new Date(ts);
-  const time = d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  const time = d.toLocaleTimeString(locale(), { hour: '2-digit', minute: '2-digit', second: '2-digit' });
   const today = new Date();
   const yest = new Date(today.getTime() - 86_400_000);
-  if (d.toDateString() === today.toDateString()) return `hoje às ${time}`;
-  if (d.toDateString() === yest.toDateString()) return `ontem às ${time}`;
-  return `${d.toLocaleDateString('pt-BR')} às ${time}`;
+  if (d.toDateString() === today.toDateString()) return t('hoje às {time}', { time });
+  if (d.toDateString() === yest.toDateString()) return t('ontem às {time}', { time });
+  return t('{date} às {time}', { date: d.toLocaleDateString(locale()), time });
 }
 export const formatSize = (n: number) => (n < 1024 ? `${n} bytes` : n < 1048576 ? `${(n / 1024).toFixed(1)} KB` : `${(n / 1048576).toFixed(1)} MB`);
 

@@ -19,6 +19,10 @@ interface Init {
 }
 
 const init: Init = (window as unknown as { __ppInit?: Init }).__ppInit ?? {};
+// O "disco" simulado sobrevive a recarregar a página (como o disco de verdade), para testar a troca de idioma
+const saved = (() => { try { return JSON.parse(sessionStorage.getItem('pp-disk') ?? 'null'); } catch { return null; } })();
+if (saved) { init.files = saved.files; init.session = saved.session; }
+const persist = () => sessionStorage.setItem('pp-disk', JSON.stringify({ files: Object.fromEntries(state.files), session: state.session }));
 
 const state = {
   files: new Map(Object.entries(init.files ?? {})),
@@ -48,6 +52,7 @@ function doc(path: string): Doc | null {
 function write(path: string, content: string) {
   state.files.set(path, content);
   state.mtimes.set(path, (state.mtimes.get(path) ?? 1000) + 1);
+  persist();
   return { path, name: nameOf(path), mtime: state.mtimes.get(path)!, size: content.length };
 }
 const fail = () => { if (state.failSession) throw 'o disco está cheio'; };
@@ -60,11 +65,12 @@ const handlers: Record<string, (a: Args) => unknown> = {
   debug_take_cmd: () => state.cmds.shift() ?? null,
   renderer_ready: () => [],
   session_load: () => ({ ...state.session, backups: { ...state.session.backups } }),
-  session_backup: (a) => { fail(); if (a.content === null) delete state.session.backups[a.id]; else state.session.backups[a.id] = a.content; },
+  session_backup: (a) => { fail(); if (a.content === null) delete state.session.backups[a.id]; else state.session.backups[a.id] = a.content; persist(); },
   session_save: (a) => {
     fail();
     state.session.meta = a.meta;
     if (a.prune) for (const id of Object.keys(state.session.backups)) if (!a.keep.includes(id)) delete state.session.backups[id];
+    persist();
   },
   open_files: () => (state.openFiles.shift() ?? []).map(doc).filter(Boolean),
   open_paths: (a) => a.paths.map(doc).filter(Boolean),

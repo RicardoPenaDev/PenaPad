@@ -1,4 +1,5 @@
 import { Feather } from 'lucide-react';
+import { t } from '../i18n';
 
 export default function TitleBar({ title, dirty }: { title: string; dirty: boolean }) {
   return (
@@ -12,7 +13,7 @@ export default function TitleBar({ title, dirty }: { title: string; dirty: boole
       <div className="pointer-events-none absolute inset-x-0 flex justify-center">
         <span className="max-w-[50%] truncate text-[13px] font-semibold">
           {title}
-          {dirty && <span className="ml-1.5 font-normal text-[var(--text-3)]">— Editado</span>}
+          {dirty && <span className="ml-1.5 font-normal text-[var(--text-3)]">— {t('Editado')}</span>}
         </span>
       </div>
     </div>

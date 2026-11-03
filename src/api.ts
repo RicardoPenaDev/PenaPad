@@ -41,6 +41,8 @@ export const api = {
   about: () => { invoke('show_about'); },
   requestQuit: () => { invoke('request_quit_cmd'); },
   setTheme: (mode: 'system' | 'light' | 'dark') => { invoke('set_theme', { mode }); },
+  /** Idioma dos menus e janelas nativas: 'auto' segue o sistema */
+  setLanguage: (pref: 'auto' | 'pt' | 'en') => { invoke('set_language', { pref }).catch(() => {}); },
   quit: () => { invoke('quit'); },
   /** Não deu para gravar a sessão ao sair: o app pergunta antes de fechar */
   quitBlocked: (error: string) => { invoke('quit_blocked', { error }); },

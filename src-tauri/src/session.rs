@@ -6,6 +6,7 @@
 //! - uma lista estragada ou de formato desconhecido é guardada à parte (`session.corrupt-<data>.json`), nunca apagada;
 //! - backups só são apagados quando a interface confirma que restaurou a sessão (`prune`).
 
+use crate::i18n::{en, tr};
 use serde::Serialize;
 use std::collections::HashMap;
 use std::io::Write;
@@ -36,8 +37,8 @@ pub fn write_atomic(path: &Path, data: &[u8]) -> Result<(), String> {
 pub fn io_message(e: &std::io::Error) -> String {
     use std::io::ErrorKind::*;
     match e.kind() {
-        PermissionDenied | ReadOnlyFilesystem => "sem permissão para gravar na pasta de dados".into(),
-        StorageFull | QuotaExceeded => "o disco está cheio".into(),
+        PermissionDenied | ReadOnlyFilesystem => tr("sem permissão para gravar na pasta de dados").into(),
+        StorageFull | QuotaExceeded => tr("o disco está cheio").into(),
         _ => e.to_string(),
     }
 }
@@ -53,14 +54,14 @@ pub struct Loaded {
 }
 
 fn valid_meta(text: &str) -> Result<(), String> {
-    let v: serde_json::Value = serde_json::from_str(text).map_err(|_| "a lista de abas estava danificada".to_string())?;
+    let v: serde_json::Value = serde_json::from_str(text).map_err(|_| tr("a lista de abas estava danificada").to_string())?;
     match v.get("v").and_then(|x| x.as_u64()) {
         Some(SESSION_VERSION) => {}
-        Some(n) => return Err(format!("a lista de abas é de outra versão do PenaPad (formato {n})")),
-        None => return Err("a lista de abas estava danificada".into()),
+        Some(n) => return Err(if en() { format!("the tab list is from another PenaPad version (format {n})") } else { format!("a lista de abas é de outra versão do PenaPad (formato {n})") }),
+        None => return Err(tr("a lista de abas estava danificada").into()),
     }
     if !v.get("tabs").map(|t| t.is_array()).unwrap_or(false) {
-        return Err("a lista de abas estava danificada".into());
+        return Err(tr("a lista de abas estava danificada").into());
     }
     Ok(())
 }
@@ -95,7 +96,7 @@ pub fn load(dir: &Path) -> Loaded {
             Ok(()) => {
                 out.meta = Some(text);
                 if i == 1 {
-                    problems.push("as abas foram restauradas da cópia anterior".to_string());
+                    problems.push(tr("as abas foram restauradas da cópia anterior").to_string());
                 }
                 break;
             }

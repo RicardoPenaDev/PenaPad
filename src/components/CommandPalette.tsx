@@ -3,6 +3,7 @@ import { Check, Search } from 'lucide-react';
 import { score } from '../commands';
 import { storeGet, storeSet } from '../storage';
 import { keys } from '../platform';
+import { t } from '../i18n';
 
 export interface PaletteItem {
   key: string;
@@ -43,7 +44,7 @@ export default function CommandPalette({ items, onRun, onCancel }: {
       // Sem texto: os usados por último primeiro, depois todos na ordem do menu
       const byKey = new Map(items.map((i) => [i.key, i]));
       const rec = recent.map((k) => byKey.get(k)).filter((x): x is PaletteItem => !!x);
-      const rest = items.filter((i) => !recent.includes(i.key) && i.group !== 'Linguagem');
+      const rest = items.filter((i) => !recent.includes(i.key) && !i.key.startsWith('language:'));
       return { list: [...rec, ...rest].slice(0, MAX_SHOWN), recentCount: rec.length, total: rec.length + rest.length };
     }
     const scored = items
@@ -89,19 +90,19 @@ export default function CommandPalette({ items, onRun, onCancel }: {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={onKey}
-            placeholder="Digite o nome de uma função (ex.: duplicadas, json, tema escuro, aba)"
+            placeholder={t("Digite o nome de uma função (ex.: duplicadas, json, tema escuro, aba)")}
             spellCheck={false}
             className="h-[42px] min-w-0 flex-1 bg-transparent text-[13.5px] !outline-none"
           />
         </div>
         <div ref={list} className="lang-list min-h-0 flex-1 overflow-y-auto p-1.5">
           {results.list.length === 0 && (
-            <div className="px-3 py-6 text-center text-[12.5px] text-[var(--text-3)]">Nenhuma função com esse nome</div>
+            <div className="px-3 py-6 text-center text-[12.5px] text-[var(--text-3)]">{t('Nenhuma função com esse nome')}</div>
           )}
           {results.list.map((it, i) => (
             <div key={it.key}>
-              {i === 0 && results.recentCount > 0 && <Heading>Usados recentemente</Heading>}
-              {i === results.recentCount && results.recentCount > 0 && <Heading>Todos</Heading>}
+              {i === 0 && results.recentCount > 0 && <Heading>{t('Usados recentemente')}</Heading>}
+              {i === results.recentCount && results.recentCount > 0 && <Heading>{t('Todos')}</Heading>}
               <button
                 data-i={i}
                 onMouseMove={() => { if (sel !== i) setSel(i); }}
@@ -120,7 +121,7 @@ export default function CommandPalette({ items, onRun, onCancel }: {
           )}
         </div>
         <div className="flex gap-3 border-t border-[var(--border)] px-3 py-1.5 text-[11px] text-[var(--text-3)]">
-          <span>↑↓ escolher</span><span>↩ executar</span><span>esc fechar</span>
+          <span>↑↓ {t('escolher')}</span><span>↩ {t('executar')}</span><span>esc {t('fechar')}</span>
         </div>
       </div>
     </div>

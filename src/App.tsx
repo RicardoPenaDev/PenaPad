@@ -24,12 +24,20 @@ import { EDITOR_OPTIONS, editorFocused, inputFocused, runFormat } from './editor
 import { formatSize, formatWhen, historyKey, REASONS } from './historyFormat';
 import { translateProblem } from './jsonProblems';
 import ExternalBanner from './components/ExternalBanner';
+import { t as tr, langPref, num, plural, setLangPref } from './i18n';
 
 // Evita redesenhar a faixa de opções e as abas a cada movimento do cursor
 const RibbonM = memo(Ribbon);
 const TabBarM = memo(TabBar);
 
 let untitledCounter = 0;
+
+/** "Sem título 3" ↔ "Untitled 3" (e "Recuperado"/"Recovered") seguem o idioma atual ao restaurar */
+function localizeUntitled(name: string): string {
+  const m = /^(Sem título|Untitled|Recuperado|Recovered) (\d+)$/.exec(name);
+  if (!m) return name;
+  return /^(Sem título|Untitled)$/.test(m[1]) ? tr('Sem título {n}', { n: m[2] }) : tr('Recuperado {n}', { n: m[2] });
+}
 
 export default function App() {
   const [tabs, setTabs] = useState<Tab[]>([]);
@@ -202,7 +210,7 @@ export default function App() {
     const p: Pane = restore?.pane ?? pane ?? focusRef.current;
     if (p === 1 && !splitRef.current) setSplit(true);
     const id = restore?.id ?? crypto.randomUUID();
-    const name = doc?.name ?? `Sem título ${++untitledCounter}`;
+    const name = doc?.name ?? tr('Sem título {n}', { n: ++untitledCounter });
     const language = restore?.language ?? (doc ? detectLanguage(doc.name) : 'plaintext');
     const model = monaco.editor.createModel(doc?.content ?? '', language, monaco.Uri.parse(`file:///penapad/${id}/${encodeURIComponent(name)}`));
     model.setEOL(doc?.eol === 'CRLF' ? monaco.editor.EndOfLineSequence.CRLF : monaco.editor.EndOfLineSequence.LF);
@@ -346,7 +354,7 @@ export default function App() {
       const now = Date.now();
       if (now - saveErrorAt.current > 30_000) {
         saveErrorAt.current = now;
-        flashRef.current(`⚠ Não foi possível guardar os textos não salvos: ${e}. Verifique o espaço livre e as permissões do disco.`);
+        flashRef.current(tr('⚠ Não foi possível guardar os textos não salvos: {e}. Verifique o espaço livre e as permissões do disco.', { e: String(e) }));
       }
       window.clearTimeout(saveTimer.current);
       saveTimer.current = window.setTimeout(() => flushRef.current(), 10_000); // tenta de novo
@@ -378,7 +386,7 @@ export default function App() {
 
     for (const { tab: t, backup } of plan.tabs) {
       let doc: OpenedDoc;
-      if (backup !== undefined) doc = { path: t.path ?? '', name: t.name, content: backup, encoding: t.encoding, eol: t.eol, mtime: t.disk?.mtime, size: t.disk?.size };
+      if (backup !== undefined) doc = { path: t.path ?? '', name: t.path ? t.name : localizeUntitled(t.name), content: backup, encoding: t.encoding, eol: t.eol, mtime: t.disk?.mtime, size: t.disk?.size };
       else if (t.path && fromDisk.has(t.path)) doc = fromDisk.get(t.path)!;
       else continue; // arquivo apagado/movido e sem alterações: nada a recuperar
       // Arquivo: mantém o estado salvo/não salvo. Texto sem arquivo com conteúdo: continua "não salvo".
@@ -389,15 +397,15 @@ export default function App() {
     // Textos guardados que a lista de abas não menciona (lista estragada, ou o app foi fechado à força
     // no meio de uma gravação): voltam como abas não salvas, nunca são descartados
     plan.orphans.forEach(({ id, text }, i) => {
-      const name = `Recuperado ${i + 1}`;
+      const name = tr('Recuperado {n}', { n: i + 1 });
       addTab({ path: '', name, content: text, encoding: 'utf8', eol: text.includes('\r\n') ? 'CRLF' : 'LF' }, { id, dirty: true, metaDirty: false, language: 'plaintext', view: null, pane: 0 });
     });
-    const notes = [data.problem, plan.orphans.length ? (plan.orphans.length === 1 ? '1 texto voltou como "Recuperado 1"' : `${plan.orphans.length} textos voltaram como "Recuperado 1…${plan.orphans.length}"`) : null].filter(Boolean);
-    if (notes.length) restoreNote.current = `⚠ ${notes.join('; ').replace(/^./, (c) => c.toUpperCase())}. Nenhum texto foi apagado.`;
+    const notes = [data.problem, plan.orphans.length ? (plan.orphans.length === 1 ? tr('1 texto voltou como "Recuperado 1"') : tr('{n} textos voltaram como "Recuperado 1…{n}"', { n: plan.orphans.length })) : null].filter(Boolean);
+    if (notes.length) restoreNote.current = `⚠ ${notes.join('; ').replace(/^./, (c) => c.toUpperCase())}. ${tr('Nenhum texto foi apagado.')}`;
     // Se um dos lados ficou vazio (arquivos apagados), volta para uma vista só
     if (splitRef.current && !(tabsRef.current.some((t) => t.pane === 0) && tabsRef.current.some((t) => t.pane === 1))) unsplit();
     for (const t of tabsRef.current) {
-      const n = /^Sem título (\d+)$/.exec(t.name);
+      const n = /^(?:Sem título|Untitled) (\d+)$/.exec(t.name);
       if (n) untitledCounter = Math.max(untitledCounter, Number(n[1]));
     }
     const acts = meta?.actives ?? [meta?.active ?? '', ''];
@@ -422,7 +430,7 @@ export default function App() {
       } catch (e) {
         // Algo deu errado no meio: segue funcionando, mas sem apagar nenhum backup antigo nesta execução
         console.error('Falha ao restaurar a sessão', e);
-        restoreNote.current = `⚠ Não foi possível restaurar toda a sessão anterior (${e}). Os textos guardados foram mantidos no disco.`;
+        restoreNote.current = tr('⚠ Não foi possível restaurar toda a sessão anterior ({e}). Os textos guardados foram mantidos no disco.', { e: String(e) });
       }
       if (tabsRef.current.length === 0) addTab();
       restored.current = true;
@@ -501,14 +509,14 @@ export default function App() {
 
   const reopenClosed = useCallback(async () => {
     const e = closedStack.current.pop();
-    if (!e) { flash('Nenhuma aba fechada para reabrir'); return; }
+    if (!e) { flash(tr('Nenhuma aba fechada para reabrir')); return; }
     const open = e.path ? tabsRef.current.find((t) => t.path === e.path) : undefined;
     if (open) { activate(open.id); return; }
     let doc: OpenedDoc;
     if (e.content !== null) doc = { path: e.path ?? '', name: e.name, content: e.content, encoding: e.encoding, eol: e.eol, mtime: e.disk?.mtime, size: e.disk?.size };
     else {
       const [d] = await api.readPathsQuiet([e.path!]);
-      if (!d) { flash(`"${e.name}" não existe mais no disco`); return; }
+      if (!d) { flash(tr('"{name}" não existe mais no disco', { name: e.name })); return; }
       doc = d;
     }
     const pane: Pane = splitRef.current && e.pane === 1 ? 1 : 0;
@@ -522,7 +530,7 @@ export default function App() {
       savedVersions.current.delete(blank.id);
       commitTabs(tabsRef.current.filter((t) => t.id !== blank.id));
     }
-    flash(`"${e.name}" reaberta`);
+    flash(tr('"{name}" reaberta', { name: e.name }));
   }, [activate, addTab, flash]);
 
   // ---------- Alterações feitas por outros programas ----------
@@ -564,7 +572,7 @@ export default function App() {
     ackDeleted.current.delete(id);
     commitTabs(tabsRef.current.map((x) => (x.id === id ? { ...x, dirty: false, metaDirty: false, encoding: d.encoding, eol: d.eol } : x)));
     setExt(id, null);
-    if (!quiet) flash(kt(`"${t.name}" recarregado do disco (⌘Z desfaz)`));
+    if (!quiet) flash(kt('"{name}" recarregado do disco (⌘Z desfaz)', { name: t.name }));
   }, [flash, setExt]);
 
   const checking = useRef(false);
@@ -588,7 +596,7 @@ export default function App() {
         if (!known) { diskStat.current.set(t.id, st); setExt(t.id, null); continue; }
         if (st.mtime === known.mtime && st.size === known.size) { if (externalRef.current[t.id] === 'deleted') setExt(t.id, null); continue; }
         if (needsBackup(t)) setExt(t.id, 'modified'); // tem alterações minhas: pergunta
-        else await reloadFromDisk(t.id, true).then(() => flash(`"${t.name}" foi alterado por outro programa e foi atualizado`));
+        else await reloadFromDisk(t.id, true).then(() => flash(tr('"{name}" foi alterado por outro programa e foi atualizado', { name: t.name })));
       }
     } catch (e) {
       console.error('verificação de alterações externas', e);
@@ -649,16 +657,16 @@ export default function App() {
     const m = models.current.get(tabId);
     if (!t || !m) return;
     const other = monaco.editor.createModel(text, m.getLanguageId());
-    setDiff({ original: { model: other, label }, modified: { model: m, label: kind === 'external' ? `Sua versão — ${t.name}` : t.name }, temp: [other], kind, tabId });
+    setDiff({ original: { model: other, label }, modified: { model: m, label: kind === 'external' ? tr('Sua versão — {name}', { name: t.name }) : t.name }, temp: [other], kind, tabId });
   }, []);
 
   const openExternalDiff = useCallback(async (id: string) => {
     const t = tabsRef.current.find((x) => x.id === id);
     if (!t?.path) return;
     const [d] = await api.readPathsQuiet([t.path]);
-    if (!d) { flash(`"${t.name}" não existe mais no disco`); return; }
+    if (!d) { flash(tr('"{name}" não existe mais no disco', { name: t.name })); return; }
     if (activesRef.current[t.pane] !== id) activate(id);
-    compareWithText(id, d.content, 'No disco (alterado por outro programa)', 'external');
+    compareWithText(id, d.content, tr('No disco (alterado por outro programa)'), 'external');
   }, [activate, compareWithText, flash]);
   const openExternalDiffRef = useRef(openExternalDiff);
   openExternalDiffRef.current = openExternalDiff;
@@ -670,10 +678,10 @@ export default function App() {
     const cur = activesRef.current[focusRef.current];
     const others = tabsRef.current.filter((t) => t.id !== cur);
     setPicker({
-      title: 'Comparar o texto atual com…',
+      title: tr('Comparar o texto atual com…'),
       items: [
-        ...others.map((t) => ({ id: t.id, label: t.name, hint: t.path ?? 'Não salvo' })),
-        { id: '__clipboard__', label: 'Texto da área de transferência', hint: kt('O que você copiou por último (⌘C)') },
+        ...others.map((t) => ({ id: t.id, label: t.name, hint: t.path ?? tr('Não salvo') })),
+        { id: '__clipboard__', label: tr('Texto da área de transferência'), hint: kt('O que você copiou por último (⌘C)') },
       ],
       onPick: (id) => pickCompareRef.current(id),
     });
@@ -686,8 +694,8 @@ export default function App() {
     if (!cur) return;
     if (otherId === '__clipboard__') {
       const text = await api.clipboardRead();
-      if (!text) { flash('A área de transferência está vazia'); return; }
-      compareWithText(cur, text, 'Área de transferência', 'tabs');
+      if (!text) { flash(tr('A área de transferência está vazia')); return; }
+      compareWithText(cur, text, tr('Área de transferência'), 'tabs');
     } else compareTabs(otherId, cur);
   }, [compareTabs, compareWithText, flash]);
   pickCompareRef.current = pickCompare;
@@ -738,7 +746,7 @@ export default function App() {
     m.pushEditOperations([], [{ range: m.getFullModelRange(), text }], () => null);
     m.pushStackElement();
     if (ed && ed.getModel() === m) ed.setPosition({ lineNumber: 1, column: 1 });
-    flash(kt(`Versão de ${when} restaurada (⌘Z desfaz)`));
+    flash(kt('Versão de {when} restaurada (⌘Z desfaz)', { when }));
   }, [flash, snapshot]);
 
   const showHistory = useCallback(async (tabId?: string) => {
@@ -746,13 +754,13 @@ export default function App() {
     const t = tabsRef.current.find((x) => x.id === id);
     if (!t) return;
     const list: HistoryEntry[] = await api.historyList(historyKey(t)).catch(() => []);
-    if (!list.length) { flash(`Ainda não há versões guardadas de "${t.name}"`); return; }
+    if (!list.length) { flash(tr('Ainda não há versões guardadas de "{name}"', { name: t.name })); return; }
     setPicker({
-      title: `Histórico de versões — ${t.name}`,
+      title: tr('Histórico de versões — {name}', { name: t.name }),
       items: list.map((e) => ({
         id: e.id,
-        label: `${formatWhen(e.ts)} — ${REASONS[e.reason] ?? e.reason}`,
-        hint: `${e.lines.toLocaleString('pt-BR')} ${e.lines === 1 ? 'linha' : 'linhas'} · ${formatSize(e.size)}`,
+        label: `${formatWhen(e.ts)} — ${REASONS[e.reason] ? tr(REASONS[e.reason]) : e.reason}`,
+        hint: `${num(e.lines)} ${plural(e.lines, 'linha', 'linhas')} · ${formatSize(e.size)}`,
       })),
       onPick: async (snapId) => {
         setPicker(null);
@@ -760,11 +768,11 @@ export default function App() {
         const m = models.current.get(id);
         if (!e || !m) return;
         const text = await api.historyRead(historyKey(t), snapId).catch(() => null);
-        if (text === null) { flash('Não foi possível ler essa versão'); return; }
+        if (text === null) { flash(tr('Não foi possível ler essa versão')); return; }
         if (activesRef.current[t.pane] !== id) activate(id);
         const when = formatWhen(e.ts);
         const other = monaco.editor.createModel(text, m.getLanguageId());
-        setDiff({ original: { model: other, label: `Versão de ${when}` }, modified: { model: m, label: `Atual — ${t.name}` }, temp: [other], kind: 'history', tabId: id, when });
+        setDiff({ original: { model: other, label: tr('Versão de {when}', { when }) }, modified: { model: m, label: tr('Atual — {name}', { name: t.name }) }, temp: [other], kind: 'history', tabId: id, when });
       },
     });
   }, [activate, flash, setDiff]);
@@ -801,7 +809,7 @@ export default function App() {
       }
     }
     ed.focus();
-    flash(`${res.message} ${scoped ? '(na seleção)' : '(no documento)'}`);
+    flash(`${res.message} ${scoped ? tr('(na seleção)') : tr('(no documento)')}`);
   }, [flash]);
 
   // ---------- Erros (JSON) na barra de status ----------
@@ -870,7 +878,7 @@ export default function App() {
       snapshotRef.current(id, 'salvo');
       return true;
     } catch (e) {
-      alert(`Não foi possível salvar o arquivo.\n\n${(e as Error).message}`);
+      alert(`${tr('Não foi possível salvar o arquivo.')}\n\n${(e as Error).message ?? e}`);
       return false;
     }
   }, [setExt]);
@@ -962,21 +970,21 @@ export default function App() {
         const a = ed.getAction('editor.action.formatDocument');
         if (a?.isSupported()) await a.run();
         else if (model?.getLanguageId() === 'plaintext') await execRef.current('formatJson');
-        else flash('Formatar Documento está disponível para JSON');
+        else flash(tr('Formatar Documento está disponível para JSON'));
         break;
       }
       case 'formatJson': {
         if (!ed || !model) break;
         if (model.getLanguageId() !== 'json') {
           const first = model.getValue().trimStart()[0];
-          if (first !== '{' && first !== '[') { flash('O texto não parece JSON (deve começar com { ou [)'); break; }
+          if (first !== '{' && first !== '[') { flash(tr('O texto não parece JSON (deve começar com { ou [)')); break; }
           monaco.editor.setModelLanguage(model, 'json');
           patchTab(id, { language: 'json' });
         }
         ed.focus();
         const ok = await runFormat(ed);
-        if (!ok) flash('Não foi possível formatar o JSON');
-        else window.setTimeout(() => flash(problemRef.current ? 'JSON formatado (tem erro)' : 'JSON formatado e válido'), 600);
+        if (!ok) flash(tr('Não foi possível formatar o JSON'));
+        else window.setTimeout(() => flash(problemRef.current ? tr('JSON formatado (tem erro)') : tr('JSON formatado e válido')), 600);
         break;
       }
       case 'gotoError': {
@@ -1004,7 +1012,7 @@ export default function App() {
         closeDiff();
         if (!t) break;
         if (cmd === 'historyRestore') await restoreVersion(t.id, text, d.when ?? '');
-        else addTab({ path: '', name: `${t.name} (versão de ${d.when})`, content: text, encoding: t.encoding, eol: t.eol }, undefined, t.pane);
+        else addTab({ path: '', name: tr('{name} (versão de {when})', { name: t.name, when: d.when ?? '' }), content: text, encoding: t.encoding, eol: t.eol }, undefined, t.pane);
         break;
       }
       case 'debugType': if (ed && arg) { ed.focus(); ed.trigger('keyboard', 'type', { text: arg.replace(/\\n/g, '\n') }); } break;
@@ -1041,6 +1049,16 @@ export default function App() {
       case 'zoomOut': setSettings((s) => ({ ...s, zoom: clampZoom(s.zoom - 10) })); break;
       case 'zoomReset': setSettings((s) => ({ ...s, zoom: 100 })); break;
       case 'theme': if (arg === 'light' || arg === 'dark' || arg === 'system') setSettings((s) => ({ ...s, theme: arg })); break;
+      case 'uiLang': {
+        // Troca o idioma: grava a sessão e recarrega a interface (as abas voltam como estavam)
+        if (arg !== 'auto' && arg !== 'pt' && arg !== 'en') break;
+        if (arg === langPref()) break;
+        setLangPref(arg);
+        api.setLanguage(arg);
+        try { await flush(); } catch { /* o aviso de erro já aparece na barra de status */ }
+        window.location.reload();
+        break;
+      }
       case 'language':
         if (model && arg) { monaco.editor.setModelLanguage(model, arg); patchTab(id, { language: arg }); ed?.focus(); }
         break;
@@ -1123,8 +1141,8 @@ export default function App() {
         const t = tabsRef.current.find((x) => x.id === tabEl.dataset.tabId);
         if (!t) return;
         const row = settingsRef.current.splitDir === 'row';
-        const label = t.pane === 0 ? (row ? 'Mover para a Direita →' : 'Mover para Baixo ↓') : (row ? '← Mover para a Esquerda' : '↑ Mover para Cima');
-        api.tabMenu(t.id, splitRef.current || t.pane === 1 ? label : row ? 'Abrir ao Lado (Dividir Tela) →' : 'Abrir Embaixo (Dividir Tela) ↓');
+        const label = tr(t.pane === 0 ? (row ? 'Mover para a Direita →' : 'Mover para Baixo ↓') : (row ? '← Mover para a Esquerda' : '↑ Mover para Cima'));
+        api.tabMenu(t.id, splitRef.current || t.pane === 1 ? label : tr(row ? 'Abrir ao Lado (Dividir Tela) →' : 'Abrir Embaixo (Dividir Tela) ↓'));
         return;
       }
       const p: Pane | -1 = host0.current?.contains(target) ? 0 : host1.current?.contains(target) ? 1 : -1;
@@ -1203,7 +1221,7 @@ export default function App() {
     window.addEventListener('mouseup', up);
   };
 
-  const ribbonState: RibbonState = useMemo(() => ({ ...settings, split, columnSelection: columnSel, language: active?.language ?? 'plaintext' }), [settings, split, columnSel, active?.language]);
+  const ribbonState: RibbonState = useMemo(() => ({ ...settings, split, columnSelection: columnSel, language: active?.language ?? 'plaintext', uiLang: langPref() }), [settings, split, columnSel, active?.language]);
 
   const tabViews0 = useMemo(() => tabs.filter((t) => t.pane === 0).map((t) => ({ id: t.id, name: t.name, path: t.path, dirty: t.dirty || t.metaDirty })), [tabs]);
   const tabViews1 = useMemo(() => tabs.filter((t) => t.pane === 1).map((t) => ({ id: t.id, name: t.name, path: t.path, dirty: t.dirty || t.metaDirty })), [tabs]);
@@ -1219,21 +1237,21 @@ export default function App() {
     };
     const items: PaletteItem[] = COMMANDS.map((c) => ({
       key: c.arg ? `${c.cmd}:${c.arg}` : c.cmd,
-      label: c.label,
-      group: c.group,
+      label: tr(c.label),
+      group: tr(c.group),
       keys: c.keys,
-      alt: c.alt,
-      on: c.cmd === 'theme' ? settings.theme === c.arg : on[c.cmd],
+      alt: `${c.alt ?? ''} ${c.label}`, // busca também pelo nome em português
+      on: c.cmd === 'theme' ? settings.theme === c.arg : c.cmd === 'uiLang' ? langPref() === c.arg : on[c.cmd],
     }));
-    items.push({ key: 'palette', label: 'Paleta de Comandos', group: 'Visualizar', keys: '⇧⌘P' });
+    items.push({ key: 'palette', label: tr('Paleta de Comandos'), group: tr('Visualizar'), keys: '⇧⌘P' });
     if (!IS_MAC) {
       // No Mac ficam no menu do app
-      items.push({ key: 'fullscreen', label: 'Tela Cheia', group: 'Visualizar', keys: 'F11' });
-      items.push({ key: 'about', label: 'Sobre o PenaPad', group: 'Ajuda', alt: 'versão licença' });
-      items.push({ key: 'quit', label: 'Sair do PenaPad', group: 'Arquivo', keys: '⌘Q', alt: 'fechar encerrar' });
+      items.push({ key: 'fullscreen', label: tr('Tela Cheia'), group: tr('Visualizar'), keys: 'F11' });
+      items.push({ key: 'about', label: tr('Sobre o PenaPad'), group: tr('Ajuda'), alt: 'versão licença about' });
+      items.push({ key: 'quit', label: tr('Sair do PenaPad'), group: tr('Arquivo'), keys: '⌘Q', alt: 'fechar encerrar exit' });
     }
-    for (const t of tabs) items.push({ key: `tab:${t.id}`, label: t.name + (t.dirty ? ' •' : ''), group: 'Ir para Aba', alt: t.path ?? '' });
-    for (const l of allLanguages()) items.push({ key: `language:${l.id}`, label: l.name, group: 'Linguagem', alt: l.id, on: active?.language === l.id });
+    for (const t of tabs) items.push({ key: `tab:${t.id}`, label: t.name + (t.dirty ? ' •' : ''), group: tr('Ir para Aba'), alt: t.path ?? '' });
+    for (const l of allLanguages()) items.push({ key: `language:${l.id}`, label: l.name, group: tr('Linguagem'), alt: l.id, on: active?.language === l.id });
     return items;
   }, [palette, settings, split, columnSel, tabs, active?.language]);
 
@@ -1273,13 +1291,13 @@ export default function App() {
           onClose={closeDiff}
           actions={diff && diff.kind === 'history' && diff.tabId ? (
             <>
-              <button className="flex h-[26px] items-center rounded-md px-2 text-[12px] hover:bg-[var(--hover)]" title="Abre esta versão numa aba nova, sem mexer no texto atual" onClick={() => exec('historyNewTab')}>Abrir em Nova Aba</button>
-              <button className="flex h-[26px] items-center rounded-md bg-[var(--accent)] px-2 text-[12px] text-white hover:brightness-110" title={kt("Troca o texto atual por esta versão (o atual também fica no histórico; ⌘Z desfaz)")} onClick={() => exec('historyRestore')}>Restaurar Esta Versão</button>
+              <button className="flex h-[26px] items-center rounded-md px-2 text-[12px] hover:bg-[var(--hover)]" title={tr("Abre esta versão numa aba nova, sem mexer no texto atual")} onClick={() => exec('historyNewTab')}>{tr('Abrir em Nova Aba')}</button>
+              <button className="flex h-[26px] items-center rounded-md bg-[var(--accent)] px-2 text-[12px] text-white hover:brightness-110" title={kt("Troca o texto atual por esta versão (o atual também fica no histórico; ⌘Z desfaz)")} onClick={() => exec('historyRestore')}>{tr('Restaurar Esta Versão')}</button>
             </>
           ) : diff && diff.kind === 'external' && diff.tabId ? (
             <>
-              <button className="flex h-[26px] items-center rounded-md px-2 text-[12px] hover:bg-[var(--hover)]" title={kt("Troca o seu texto pela versão do disco (⌘Z desfaz)")} onClick={() => { const id = diff.tabId!; closeDiff(); reloadFromDisk(id); }}>Usar Versão do Disco</button>
-              <button className="flex h-[26px] items-center rounded-md bg-[var(--accent)] px-2 text-[12px] text-white hover:brightness-110" title="Mantém o seu texto; ao salvar, ele substitui o do disco" onClick={() => { const id = diff.tabId!; closeDiff(); keepMine(id); }}>Manter Minha Versão</button>
+              <button className="flex h-[26px] items-center rounded-md px-2 text-[12px] hover:bg-[var(--hover)]" title={kt("Troca o seu texto pela versão do disco (⌘Z desfaz)")} onClick={() => { const id = diff.tabId!; closeDiff(); reloadFromDisk(id); }}>{tr('Usar Versão do Disco')}</button>
+              <button className="flex h-[26px] items-center rounded-md bg-[var(--accent)] px-2 text-[12px] text-white hover:brightness-110" title={tr("Mantém o seu texto; ao salvar, ele substitui o do disco")} onClick={() => { const id = diff.tabId!; closeDiff(); keepMine(id); }}>{tr('Manter Minha Versão')}</button>
             </>
           ) : undefined}
         />
@@ -1291,7 +1309,7 @@ export default function App() {
               <div
                 onMouseDown={startResize}
                 onDoubleClick={() => setRatio(0.5)}
-                title="Arraste para redimensionar (duplo clique: metade)"
+                title={tr("Arraste para redimensionar (duplo clique: metade)")}
                 className={`shrink-0 bg-[var(--border)] hover:bg-[var(--accent)] ${settings.splitDir === 'row' ? 'w-[3px] cursor-col-resize' : 'h-[3px] cursor-row-resize'}`}
               />
             )}
@@ -1339,8 +1357,8 @@ export default function App() {
       </div>
       {prompt && (
         <PromptDialog
-          title={prompt === 'prefix' ? 'Adicionar prefixo no início de cada linha' : 'Adicionar sufixo no fim de cada linha'}
-          hint={`Será aplicado ${(editor?.getSelection()?.isEmpty() ?? true) ? 'em todas as linhas do documento' : 'nas linhas selecionadas'}. ${kt('⌘Z')} desfaz.`}
+          title={tr(prompt === 'prefix' ? 'Adicionar prefixo no início de cada linha' : 'Adicionar sufixo no fim de cada linha')}
+          hint={kt((editor?.getSelection()?.isEmpty() ?? true) ? 'Será aplicado em todas as linhas do documento. ⌘Z desfaz.' : 'Será aplicado nas linhas selecionadas. ⌘Z desfaz.')}
           onCancel={() => { setPrompt(null); editor?.focus(); }}
           onOk={(v) => { const op = prompt; setPrompt(null); runLineOp(op, v); }}
         />

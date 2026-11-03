@@ -1,3 +1,5 @@
+import { getLang } from './i18n';
+
 // Mensagens do validador de JSON (em inglês) → português
 export const JSON_MSGS: [RegExp, string][] = [
   [/^Expected comma or closing bracket/i, 'falta uma vírgula ou o colchete de fechamento ( ] )'],
@@ -21,5 +23,5 @@ export const JSON_MSGS: [RegExp, string][] = [
   [/^Invalid symbol/i, 'símbolo inválido'],
   [/^Incorrect type/i, 'tipo incorreto'],
 ];
-export const translateProblem = (msg: string) => JSON_MSGS.find(([re]) => re.test(msg))?.[1] ?? msg;
+export const translateProblem = (msg: string) => (getLang() === 'en' ? msg : JSON_MSGS.find(([re]) => re.test(msg))?.[1] ?? msg);
 

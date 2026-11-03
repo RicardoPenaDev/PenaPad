@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { t } from '../i18n';
 
 /** Caixa simples para pedir um texto (ex.: prefixo/sufixo das linhas) */
 export default function PromptDialog({ title, hint, onOk, onCancel }: {
@@ -31,8 +32,8 @@ export default function PromptDialog({ title, hint, onOk, onCancel }: {
           className="h-[30px] w-full rounded-md border border-[var(--border-strong)] bg-[var(--surface)] px-2 font-mono text-[12.5px] outline-none focus:border-[var(--accent)]"
         />
         <div className="mt-4 flex justify-end gap-2">
-          <button onClick={onCancel} className="h-[28px] rounded-md px-3 text-[12px] hover:bg-[var(--hover)]">Cancelar</button>
-          <button onClick={() => onOk(value)} className="h-[28px] rounded-md bg-[var(--accent)] px-3 text-[12px] text-white hover:brightness-110">Aplicar</button>
+          <button onClick={onCancel} className="h-[28px] rounded-md px-3 text-[12px] hover:bg-[var(--hover)]">{t('Cancelar')}</button>
+          <button onClick={() => onOk(value)} className="h-[28px] rounded-md bg-[var(--accent)] px-3 text-[12px] text-white hover:brightness-110">{t('Aplicar')}</button>
         </div>
       </div>
     </div>

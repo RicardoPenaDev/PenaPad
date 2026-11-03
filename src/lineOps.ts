@@ -1,4 +1,5 @@
 // Operações sobre linhas. Funções puras: recebem as linhas e devolvem o resultado + uma mensagem.
+import { t } from './i18n';
 
 export type LineOp = 'sortAsc' | 'sortDesc' | 'dedupe' | 'removeEmpty' | 'trimBoth' | 'trim' | 'prefix' | 'suffix';
 
@@ -8,7 +9,7 @@ export interface LineOpResult {
 }
 
 const collator = new Intl.Collator('pt-BR', { numeric: true, sensitivity: 'base' });
-const plural = (n: number, um: string, varios: string) => `${n} ${n === 1 ? um : varios}`;
+const plural = (n: number, um: string, varios: string) => `${n} ${t(n === 1 ? um : varios)}`;
 
 export function applyLineOp(op: LineOp, lines: string[], arg = ''): LineOpResult {
   switch (op) {
@@ -22,12 +23,12 @@ export function applyLineOp(op: LineOp, lines: string[], arg = ''): LineOpResult
       const seen = new Set<string>();
       const out = lines.filter((l) => (seen.has(l) ? false : (seen.add(l), true)));
       const n = lines.length - out.length;
-      return { lines: out, message: n ? `${plural(n, 'linha duplicada removida', 'linhas duplicadas removidas')}` : 'Nenhuma linha duplicada' };
+      return { lines: out, message: n ? `${plural(n, 'linha duplicada removida', 'linhas duplicadas removidas')}` : t('Nenhuma linha duplicada') };
     }
     case 'removeEmpty': {
       const out = lines.filter((l) => l.trim() !== '');
       const n = lines.length - out.length;
-      return { lines: out, message: n ? `${plural(n, 'linha vazia removida', 'linhas vazias removidas')}` : 'Nenhuma linha vazia' };
+      return { lines: out, message: n ? `${plural(n, 'linha vazia removida', 'linhas vazias removidas')}` : t('Nenhuma linha vazia') };
     }
     case 'trimBoth':
     case 'trim': {
@@ -37,11 +38,11 @@ export function applyLineOp(op: LineOp, lines: string[], arg = ''): LineOpResult
         if (t !== l) n++;
         return t;
       });
-      return { lines: out, message: n ? `Espaços removidos em ${plural(n, 'linha', 'linhas')}` : 'Nenhum espaço sobrando' };
+      return { lines: out, message: n ? t('Espaços removidos em {lines}', { lines: plural(n, 'linha', 'linhas') }) : t('Nenhum espaço sobrando') };
     }
     case 'prefix':
-      return { lines: lines.map((l) => arg + l), message: `Prefixo adicionado em ${plural(lines.length, 'linha', 'linhas')}` };
+      return { lines: lines.map((l) => arg + l), message: t('Prefixo adicionado em {lines}', { lines: plural(lines.length, 'linha', 'linhas') }) };
     case 'suffix':
-      return { lines: lines.map((l) => l + arg), message: `Sufixo adicionado em ${plural(lines.length, 'linha', 'linhas')}` };
+      return { lines: lines.map((l) => l + arg), message: t('Sufixo adicionado em {lines}', { lines: plural(lines.length, 'linha', 'linhas') }) };
   }
 }

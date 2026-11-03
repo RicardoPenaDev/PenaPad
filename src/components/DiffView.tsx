@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { ChevronDown, ChevronUp, Columns2, Rows2, X } from 'lucide-react';
 import { kt } from '../platform';
 import { monaco } from '../monaco';
+import { t, plural } from '../i18n';
 
 export interface DiffSide { model: monaco.editor.ITextModel; label: string }
 
@@ -104,26 +105,26 @@ export default function DiffView({ content, fontSize, actions, onClose }: {
         </span>
         {summary && (
           <span className="text-[var(--text-2)]">
-            {summary.blocks === 0 ? 'Os textos são iguais' : (
+            {summary.blocks === 0 ? t('Os textos são iguais') : (
               <>
                 <span className="text-[var(--diff-add)]">+{summary.added}</span>{' '}
                 <span className="text-[var(--diff-del)]">−{summary.removed}</span>{' '}
-                · {summary.blocks} {summary.blocks === 1 ? 'diferença' : 'diferenças'}
+                · {summary.blocks} {plural(summary.blocks, 'diferença', 'diferenças')}
               </>
             )}
           </span>
         )}
         <div className="ml-auto flex items-center gap-1">
-          <button className={btn} title={kt("Diferença anterior (⇧F7)")} onClick={() => diff.current?.goToDiff('previous')}><ChevronUp size={14} /> Anterior</button>
-          <button className={btn} title="Próxima diferença (F7)" onClick={() => diff.current?.goToDiff('next')}><ChevronDown size={14} /> Próxima</button>
-          <button className={btn} title="Lado a lado ou em uma coluna" onClick={() => setSideBySide((v) => !v)}>
-            {sideBySide ? <Rows2 size={14} /> : <Columns2 size={14} />} {sideBySide ? 'Em Linha' : 'Lado a Lado'}
+          <button className={btn} title={kt("Diferença anterior (⇧F7)")} onClick={() => diff.current?.goToDiff('previous')}><ChevronUp size={14} /> {t('Anterior')}</button>
+          <button className={btn} title={t("Próxima diferença (F7)")} onClick={() => diff.current?.goToDiff('next')}><ChevronDown size={14} /> {t('Próxima')}</button>
+          <button className={btn} title={t("Lado a lado ou em uma coluna")} onClick={() => setSideBySide((v) => !v)}>
+            {sideBySide ? <Rows2 size={14} /> : <Columns2 size={14} />} {sideBySide ? t('Em Linha') : t('Lado a Lado')}
           </button>
-          <label className={`${btn} cursor-default`} title="Ignorar diferenças só de espaços no início/fim das linhas">
-            <input type="checkbox" checked={ignoreWs} onChange={(e) => setIgnoreWs(e.target.checked)} /> Ignorar espaços
+          <label className={`${btn} cursor-default`} title={t("Ignorar diferenças só de espaços no início/fim das linhas")}>
+            <input type="checkbox" checked={ignoreWs} onChange={(e) => setIgnoreWs(e.target.checked)} /> {t('Ignorar espaços')}
           </label>
           {actions}
-          <button className={btn} title="Fechar comparação (Esc)" onClick={onClose}><X size={14} /> Fechar</button>
+          <button className={btn} title={t("Fechar comparação (Esc)")} onClick={onClose}><X size={14} /> {t('Fechar')}</button>
         </div>
       </div>
       <div ref={host} className="min-h-0 flex-1" />
