@@ -2,6 +2,8 @@
 // O teste tests/i18n.test.ts avisa se algum texto da interface ficar sem tradução.
 
 export const EN: Record<string, string> = {
+  'Ative o Ditado em Ajustes do Sistema → Teclado → Ditado e tente novamente.': 'Enable Dictation in System Settings → Keyboard → Dictation and try again.',
+  'Detalhes do erro': 'Error details',
   // Abas e arquivos
   'Sem título {n}': 'Untitled {n}',
   'Recuperado {n}': 'Recovered {n}',
@@ -365,4 +367,24 @@ export const EN: Record<string, string> = {
   'Abrir ao Lado (Dividir Tela) →': 'Open to the Side (Split View) →',
   'Abrir Embaixo (Dividir Tela) ↓': 'Open Below (Split View) ↓',
   'Arraste para redimensionar (duplo clique: metade)': 'Drag to resize (double-click: half)',
+  "Ditado": "Dictation",
+  "Voz": "Voice",
+  "Permita o reconhecimento de fala em Ajustes do Sistema → Privacidade e Segurança.": "Allow speech recognition in System Settings → Privacy & Security.",
+  "Permita o microfone em Ajustes do Sistema → Privacidade e Segurança.": "Allow microphone access in System Settings → Privacy & Security.",
+  "Não foi possível abrir o microfone. Confira a entrada de áudio do sistema.": "Could not open the microphone. Check the system audio input.",
+  "O reconhecimento deste idioma está indisponível. Confira a conexão e tente novamente.": "Speech recognition for this language is unavailable. Check your connection and try again.",
+  "O ditado foi interrompido. Você pode inserir o texto recebido ou tentar novamente.": "Dictation was interrupted. You can insert the received text or try again.",
+  "O ditado usa o reconhecimento do macOS. Se o processamento local não estiver disponível, o áudio poderá ser enviado à Apple. Nenhum áudio é salvo pelo PenaPad.": "Dictation uses macOS speech recognition. If on-device processing is unavailable, audio may be sent to Apple. PenaPad does not save any audio.",
+  "Idioma do ditado": "Dictation language",
+  "O ditado integrado está disponível nesta versão somente no macOS.": "Built-in dictation is only available on macOS in this version.",
+  "Aguardando permissão para ditar…": "Waiting for dictation permission…",
+  "Ouvindo… Fale no idioma escolhido.": "Listening… Speak in the selected language.",
+  "Finalizando o ditado…": "Finishing dictation…",
+  "Inicie o ditado e revise o texto antes de inserir.": "Start dictation and review the text before inserting.",
+  "Texto ditado": "Dictated text",
+  "Cada gravação dura até 55 segundos. Inserir substitui a seleção; Desfazer recupera o texto anterior.": "Each recording lasts up to 55 seconds. Insert replaces the selection; Undo restores the previous text.",
+  "Parar ditado": "Stop dictation",
+  "Iniciar ditado": "Start dictation",
+  "Inserir texto": "Insert text",
+  "O documento mudou durante o ditado. Copie o texto acima e reabra o ditado na posição desejada.": "The document changed during dictation. Copy the text above and reopen dictation at the desired position.",
 };

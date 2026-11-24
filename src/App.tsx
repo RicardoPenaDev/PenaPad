@@ -26,6 +26,7 @@ import { translateProblem } from './jsonProblems';
 import ExternalBanner from './components/ExternalBanner';
 import UpdateBanner, { type UpdateInfo } from './components/UpdateBanner';
 import AboutDialog, { type LinkKind } from './components/AboutDialog';
+import DictationDialog from './components/DictationDialog';
 import { t as tr, langPref, num, plural, setLangPref } from './i18n';
 
 // Evita redesenhar a faixa de opções e as abas a cada movimento do cursor
@@ -52,6 +53,9 @@ export default function App() {
   const [systemDark, setSystemDark] = useState(() => matchMedia('(prefers-color-scheme: dark)').matches);
   const [status, setStatus] = useState<StatusInfo>({ line: 1, col: 1, selChars: 0, selLines: 0, cursors: 1, totalChars: 0, totalLines: 1 });
   const [find, setFind] = useState({ open: false, replace: false, token: 0 });
+  const [dictation, setDictation] = useState<{
+    id: string; version: number; selection: monaco.Selection;
+  } | null>(null);
 
   const host0 = useRef<HTMLDivElement>(null);
   const host1 = useRef<HTMLDivElement>(null);
@@ -967,6 +971,13 @@ export default function App() {
     const run = (action: string) => { if (!ed) return; ed.focus(); ed.trigger('penapad', action, null); };
 
     switch (cmd) {
+      case 'dictation': {
+        const selection = ed?.getSelection();
+        if (model && selection && !ed?.getOption(monaco.editor.EditorOption.readOnly)) {
+          setDictation({ id, version: model.getVersionId(), selection });
+        }
+        break;
+      }
       case 'new': addTab(); break;
       case 'open': {
         const docs = await api.openFiles();
@@ -1428,6 +1439,18 @@ export default function App() {
           onReleaseNotes={() => api.openReleases(appInfo.version)}
           onOpen={(k: LinkKind) => api.openLink(k)}
         />
+      )}
+      {dictation && (
+        <DictationDialog onClose={() => { setDictation(null); editor?.focus(); }} onInsert={(text) => {
+          const model = models.current.get(dictation.id);
+          if (!model || model.getVersionId() !== dictation.version) return false;
+          model.pushStackElement();
+          model.pushEditOperations(null, [{ range: dictation.selection, text, forceMoveMarkers: true }], () => null);
+          model.pushStackElement();
+          setDictation(null);
+          editor?.focus();
+          return true;
+        }} />
       )}
       {palette && (
         <CommandPalette items={paletteItems} onRun={runPalette} onCancel={() => { setPalette(false); editor?.focus(); }} />

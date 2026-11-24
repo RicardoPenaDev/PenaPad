@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react';
 import {
-  FilePlus, FolderOpen, Save, SaveAll, Undo2, Redo2, Scissors, Copy, ClipboardPaste, WrapText,
+  FilePlus, FolderOpen, Save, SaveAll, Undo2, Redo2, Scissors, Copy, ClipboardPaste, WrapText, Mic,
   ZoomIn, ZoomOut, Search, Replace, MessageSquareCode, CopyPlus, ArrowUp, ArrowDown, Trash2,
   CaseUpper, CaseLower, Eraser, ArrowDownAZ, ArrowDownZA, Wand2, Map as MapIcon, ListOrdered,
   Pilcrow, Sun, Moon, Monitor, FoldVertical, UnfoldVertical, CornerDownRight, ChevronDown,
@@ -203,6 +203,9 @@ export default function Ribbon({ exec, state }: { exec: Exec; state: RibbonState
                   <Small icon={<Copy size={S} />} label={t("Copiar")} title={kt("Copiar (⌘C)")} onClick={() => exec('copy')} />
                   <Small icon={<TextSelect size={S} />} label={t("Selecionar Tudo")} title={kt("Selecionar Tudo (⌘A)")} onClick={() => exec('selectAll')} />
                 </Stack>
+              </Group>
+              <Group label={t('Voz')}>
+                <Big icon={<Mic size={I} strokeWidth={1.5} />} label={t('Ditado')} onClick={() => exec('dictation')} />
               </Group>
               <Group label={t("Histórico")}>
                 <Stack>

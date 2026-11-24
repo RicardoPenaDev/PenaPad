@@ -18,6 +18,8 @@ interface Init {
   failSession?: boolean;
   /** Mostra o botão de apoio (link configurado) */
   donate?: boolean;
+  dictationAvailable?: boolean;
+  dictationStartError?: string;
 }
 
 const init: Init = (window as unknown as { __ppInit?: Init }).__ppInit ?? {};
@@ -63,6 +65,9 @@ const fail = () => { if (state.failSession) throw 'o disco está cheio'; };
 type Args = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
 
 const handlers: Record<string, (a: Args) => unknown> = {
+  dictation_available: () => init.dictationAvailable ?? true,
+  dictation_start: () => { if (init.dictationStartError) throw init.dictationStartError; return null; },
+  dictation_stop: () => null,
   debug_enabled: () => true,
   debug_write: (a) => { state.debug = JSON.parse(a.text); },
   debug_take_cmd: () => state.cmds.shift() ?? null,
@@ -96,7 +101,7 @@ const handlers: Record<string, (a: Args) => unknown> = {
   history_read: (a) => state.history.get(a.key)?.find((e) => e.id === a.id)?.content ?? '',
   history_rename: (a) => { const l = state.history.get(a.from); if (l) { state.history.set(a.to, l); state.history.delete(a.from); } },
   set_title: (a) => { state.title = a.title; },
-  'plugin:app|version': () => '1.2.2',
+  'plugin:app|version': () => '1.3.0',
   donate_enabled: () => !!init.donate,
   open_link: (a) => { state.opened.push(a.kind); },
   open_releases: (a) => { state.opened.push(`releases:${a.version}`); },

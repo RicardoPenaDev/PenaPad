@@ -35,6 +35,18 @@
 
 ## Recursos
 
+### Ditado em português e inglês (macOS)
+Em **Início → Ditado**, escolha **Português (Brasil)** ou **English (US)** e clique em **Iniciar ditado**.
+Na primeira utilização, autorize reconhecimento de fala e microfone no macOS. Clique em **Parar ditado**,
+revise o texto e use **Inserir texto** para substituir a seleção ou escrever no cursor. A inserção é uma única
+ação de desfazer. **Cancelar** ou `Esc` interrompe a captura sem inserir nada. Cada sessão dura até 55 segundos.
+
+Usa o Speech framework do macOS, com processamento local quando suportado. Quando indisponível,
+o reconhecimento pode enviar áudio à Apple e exigir internet. O PenaPad não salva gravações.
+Windows e Linux ainda não têm ditado integrado nesta versão.
+
+![Prévia editável do ditado no PenaPad, com texto de demonstração](docs/screenshots/04-ditado.png)
+
 ### Tela dividida
 Dois arquivos lado a lado (ou um em cima do outro), cada lado com suas próprias abas. `⌘\` (`Ctrl+\`) divide e junta;
 clique direito numa aba para mandá-la para o outro lado.
@@ -135,9 +147,10 @@ O pacote Flatpak usa o runtime GNOME 50 do Flathub. Se ele ainda não estiver in
 `flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo`.
 
 ### Onde ficam os dados
-Tudo fica só no seu computador: `session.json` e `backup/` (textos abertos) e `history/` (versões: até 50 por
-documento, 30 dias, 200 MB no total). O PenaPad só se conecta à internet para procurar versões novas (uma vez por dia, no GitHub); dá para desligar
-em **Ajuda → Procurar Atualizações Automaticamente** na paleta de comandos.
+As sessões, rascunhos e versões ficam no seu computador: `session.json`, `backup/` (textos abertos) e `history/`
+(versões: até 50 por documento, 30 dias, 200 MB no total). O PenaPad consulta versões novas uma vez por dia no GitHub;
+dá para desligar em **Ajuda → Procurar Atualizações Automaticamente** na paleta de comandos. O ditado é opcional
+e pode usar os servidores da Apple conforme descrito acima.
 
 | Sistema | Pasta |
 |---|---|

@@ -1,4 +1,5 @@
 mod history;
+mod dictation;
 mod i18n;
 mod session;
 mod update;
@@ -763,6 +764,9 @@ pub fn run() {
             }
         })
         .invoke_handler(tauri::generate_handler![
+            dictation::dictation_available,
+            dictation::dictation_start,
+            dictation::dictation_stop,
             renderer_ready,
             open_files,
             open_paths,

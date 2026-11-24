@@ -6,6 +6,7 @@ import { getVersion } from '@tauri-apps/api/app';
 import type { Encoding, FileStat, OpenedDoc } from './types';
 
 export interface HistoryEntry { id: string; ts: number; reason: string; size: number; lines: number; name: string }
+export interface DictationEvent { token: number; kind: 'transcript' | 'listening' | 'stopping' | 'stopped' | 'error'; text: string }
 
 type Saved = { path: string; name: string; mtime: number; size: number };
 
@@ -15,6 +16,10 @@ function subscribe<T>(event: string, cb: (payload: T) => void): () => void {
 }
 
 export const api = {
+  dictationAvailable: () => invoke<boolean>('dictation_available'),
+  dictationStart: (token: number, language: string) => invoke<void>('dictation_start', { token, language }),
+  dictationStop: (token: number, cancel = false) => invoke<void>('dictation_stop', { token, cancel }),
+  onDictation: (cb: (event: DictationEvent) => void) => listen<DictationEvent>('dictation', (e) => cb(e.payload)),
   openFiles: () => invoke<OpenedDoc[]>('open_files'),
   openPaths: (paths: string[]) => invoke<OpenedDoc[]>('open_paths', { paths }),
   save: (p: { path: string; content: string; encoding: Encoding }) => invoke<Saved>('save_file', p),

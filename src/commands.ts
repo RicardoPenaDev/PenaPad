@@ -11,6 +11,7 @@ export interface Command {
 }
 
 export const COMMANDS: Command[] = [
+  { cmd: 'dictation', label: 'Ditado', group: 'Editar', alt: 'voz microfone português inglês speech voice dictation' },
   // Arquivo
   { cmd: 'new', label: 'Novo', group: 'Arquivo', keys: '⌘N', alt: 'nova aba documento' },
   { cmd: 'open', label: 'Abrir…', group: 'Arquivo', keys: '⌘O', alt: 'arquivo' },

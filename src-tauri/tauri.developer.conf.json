@@ -1,0 +1,6 @@
+{
+  "productName": "PenaPad Developer",
+  "identifier": "com.ricardopena.penapad.developer",
+  "bundle": { "createUpdaterArtifacts": false },
+  "plugins": { "updater": { "endpoints": [] } }
+}
